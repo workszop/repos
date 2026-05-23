@@ -129,6 +129,10 @@ input.fi::placeholder{color:var(--mu)}
 .csel{background:var(--bg);border:1px solid var(--bd);border-radius:5px;color:var(--mu);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 6px;cursor:pointer;outline:none;transition:border-color .15s;max-width:110px}
 .csel:hover{border-color:var(--ac);color:var(--tx)}
 
+/* Expand button */
+.expand-btn{grid-column:1/-1;width:100%;background:transparent;border:1px dashed var(--bd);border-radius:7px;color:var(--mu);font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;padding:8px;cursor:pointer;transition:all .15s}
+.expand-btn:hover{border-color:var(--ac);color:var(--ac);background:color-mix(in srgb,var(--ac) 4%,transparent)}
+
 /* Add tile */
 .add-tile{background:transparent;border:2px dashed var(--bd);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:120px;cursor:pointer;color:var(--mu);transition:all .15s;font-size:14px;font-weight:500;padding:24px}
 .add-tile:hover{border-color:var(--ac);color:var(--tx);background:color-mix(in srgb,var(--ac) 4%,transparent)}
@@ -360,8 +364,10 @@ const SEED=[
 const COLORS=['coral','sky','sage','lav','amber','teal','rose','mint'];
 const DEF_CATS=[{id:'fun',name:'Fun',col:'coral'},{id:'edu',name:'Edu',col:'sky'},{id:'work',name:'Work',col:'sage'},{id:'other',name:'Other',col:'lav'}];
 
+const CAT_LIMIT=9;
 let repos=[], cats=[], activeRepo=null, addingNew=false, newCol='amber';
 let repoOrder={};           // { catId: [name, ...] }  — order within each box
+let expandedCats={};        // { catId: true }  — categories showing full list
 let dragType=null;          // 'card' | 'box'
 let dragCardName=null;
 let dragBoxId=null;
@@ -457,6 +463,7 @@ function moveRepo(srcName, tgtCatId, tgtName, insertBefore){
   if(oldCat!==tgtCatId){
     repoOrder[tgtCatId]=repoOrder[tgtCatId].filter(n=>repos.find(x=>x.name===n));
   }
+  repoOrder[tgtCatId]=repoOrder[tgtCatId].filter(n=>n!==srcName);
   const arr=repoOrder[tgtCatId];
   if(!tgtName){ arr.push(srcName); }
   else{
@@ -510,7 +517,8 @@ function renderDash(){
       </div>
       <div class="bbd" id="bb-${cat.id}" data-cid="${cat.id}">
         ${cr.length===0?'<div class="bempty">Drop repos here</div>':''}
-        ${cr.map(cardH).join('')}
+        ${(expandedCats[cat.id]?cr:cr.slice(0,CAT_LIMIT)).map(cardH).join('')}
+        ${cr.length>CAT_LIMIT?`<button class="expand-btn" onclick="toggleExpand('${cat.id}')">${expandedCats[cat.id]?'Show less ↑':'Show '+(cr.length-CAT_LIMIT)+' more ↓'}</button>`:''}
       </div>`;
     grid.appendChild(box);
 
@@ -685,6 +693,8 @@ function startRename(id){
   inp.addEventListener('keydown',e=>{if(e.key==='Enter')done();if(e.key==='Escape')renderDash();});
   inp.addEventListener('blur',done);
 }
+
+function toggleExpand(catId){ expandedCats[catId]=!expandedCats[catId]; renderDash(); }
 
 function delCat(id){
   if(repos.some(r=>r.category===id)){alert('Move all repos out first.');return;}
