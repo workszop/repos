@@ -477,11 +477,9 @@ function ensureOrder(catId){
 function moveRepo(srcName, tgtCatId, tgtName, insertBefore){
   const r=repos.find(x=>x.name===srcName); if(!r||srcName===tgtName) return;
   const oldCat=r.category;
-  r.category=tgtCatId;
+  // category updated AFTER order manipulation so ensureOrder reads correct state
   ensureOrder(oldCat); ensureOrder(tgtCatId);
-  // Remove from old order
   repoOrder[oldCat]=repoOrder[oldCat].filter(n=>n!==srcName);
-  // Prepare target order (may now include repos from both sides if same cat)
   if(oldCat!==tgtCatId){
     repoOrder[tgtCatId]=repoOrder[tgtCatId].filter(n=>repos.find(x=>x.name===n));
   }
@@ -491,6 +489,7 @@ function moveRepo(srcName, tgtCatId, tgtName, insertBefore){
     const ti=arr.indexOf(tgtName);
     ti===-1 ? arr.push(srcName) : arr.splice(insertBefore?ti:ti+1,0,srcName);
   }
+  r.category=tgtCatId;
   saveState(); renderDash();
   if(activeRepo?.name===srcName) fillSbCat(tgtCatId);
 }
