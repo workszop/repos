@@ -113,8 +113,24 @@ input.fi::placeholder{color:var(--mu)}
 .rcard.drop-before{border-top-color:var(--ac);border-top-width:2px;padding-top:13px}
 .rcard.drop-after{border-bottom-color:var(--ac);border-bottom-width:2px;padding-bottom:13px}
 
-.rt{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
-.rn{font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:400;color:var(--tx);word-break:break-all;line-height:1.4}
+.rt{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px}
+.rn{font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:400;color:var(--tx);word-break:break-all;line-height:1.4;flex:1;min-width:0}
+
+/* ── Star button ── */
+.star-btn{background:transparent;border:none;color:var(--bd);padding:2px;cursor:pointer;display:grid;place-items:center;flex-shrink:0;transition:color .15s,transform .15s;border-radius:4px;margin-top:1px}
+.star-btn:hover{color:var(--amber);transform:scale(1.25)}
+.star-btn.on{color:var(--amber)}
+.star-btn svg{display:block;width:13px;height:13px;stroke-width:2;stroke:currentColor;fill:none}
+.star-btn.on svg{fill:var(--amber)}
+
+/* Category badge (used in Favourites cards) */
+.cat-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 7px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--mu);flex-shrink:0;white-space:nowrap}
+
+/* ── Favourites box ── */
+.fav-box{background:var(--sf);border:1px solid color-mix(in srgb,var(--amber) 30%,var(--bd));border-radius:12px;overflow:hidden;grid-column:1/-1}
+.fav-bh{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid color-mix(in srgb,var(--amber) 20%,var(--bd));position:relative}
+.fav-bh::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:0 3px 3px 0;background:var(--amber)}
+.fav-name{font-weight:700;font-size:15px;letter-spacing:.01em;color:var(--amber);flex:1}
 .lb{flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 8px;border-radius:9px;border:1px solid;align-self:flex-start;white-space:nowrap}
 .l-html{color:#e8672c;border-color:rgba(232,103,44,.3);background:rgba(232,103,44,.08)}
 .l-javascript{color:#c9aa00;border-color:rgba(201,170,0,.3);background:rgba(201,170,0,.08)}
@@ -299,7 +315,10 @@ input.fi::placeholder{color:var(--mu)}
           </div>
           <div class="sbb">
             <div>
-              <div class="sbn" id="sbn"></div>
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <div class="sbn" id="sbn" style="flex:1;min-width:0"></div>
+                <button class="star-btn" id="sbstar" style="margin-top:3px;width:20px;height:20px"><svg viewBox="0 0 24 24" style="width:15px;height:15px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
+              </div>
               <div class="sbm"><span id="sblng" class="lb"></span><span class="sbd" id="sbdt"></span></div>
             </div>
             <div>
@@ -367,7 +386,8 @@ const DEF_CATS=[{id:'fun',name:'Fun',col:'coral'},{id:'edu',name:'Edu',col:'sky'
 const CAT_LIMIT=9;
 let repos=[], cats=[], activeRepo=null, addingNew=false, newCol='amber';
 let repoOrder={};           // { catId: [name, ...] }  — order within each box
-let expandedCats={};        // { catId: true }  — categories showing full list
+let expandedCats={};        // { catId: true }
+let starred=new Set();      // repo names
 let dragType=null;          // 'card' | 'box'
 let dragCardName=null;
 let dragBoxId=null;
@@ -381,6 +401,7 @@ function saveState(){
   lsSet('rv_repos', repos);
   lsSet('rv_rc', Object.fromEntries(repos.map(r=>[r.name,r.category])));
   lsSet('rv_order', repoOrder);
+  lsSet('rv_starred', [...starred]);
   showToast();
 }
 function saveCats(){ lsSet('rv_cats', cats); }
@@ -395,6 +416,7 @@ function showToast(){
 function init(){
   cats=lsGet('rv_cats',null)||JSON.parse(JSON.stringify(DEF_CATS));
   repoOrder=lsGet('rv_order',{});
+  starred=new Set(lsGet('rv_starred',[]));
   const savedRepos=lsGet('rv_repos',null);
   const savedRC=lsGet('rv_rc',{});
   if(savedRepos&&savedRepos.length>0){
@@ -463,7 +485,6 @@ function moveRepo(srcName, tgtCatId, tgtName, insertBefore){
   if(oldCat!==tgtCatId){
     repoOrder[tgtCatId]=repoOrder[tgtCatId].filter(n=>repos.find(x=>x.name===n));
   }
-  repoOrder[tgtCatId]=repoOrder[tgtCatId].filter(n=>n!==srcName);
   const arr=repoOrder[tgtCatId];
   if(!tgtName){ arr.push(srcName); }
   else{
@@ -488,6 +509,31 @@ function moveCat(srcId, tgtId, before){
 function renderDash(){
   const grid=document.getElementById('cgrid');
   grid.innerHTML='';
+
+  /* ── Favourites box (auto, read-only) ── */
+  const favRepos=repos.filter(r=>starred.has(r.name));
+  if(favRepos.length>0){
+    const fbox=document.createElement('div');
+    fbox.className='fav-box';
+    fbox.innerHTML=`
+      <div class="fav-bh">
+        <svg viewBox="0 0 24 24" style="width:15px;height:15px;flex-shrink:0;stroke:var(--amber);fill:var(--amber);stroke-width:2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span class="fav-name">Favourites</span>
+        <span class="bcnt">${favRepos.length}</span>
+      </div>
+      <div class="bbd" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">
+        ${favRepos.map(r=>cardH(r,true)).join('')}
+      </div>`;
+    grid.appendChild(fbox);
+    fbox.querySelectorAll('.rcard').forEach(card=>{
+      card.addEventListener('click',e=>{
+        if(e.target.closest('.star-btn')||e.target.closest('.csel')) return;
+        const r=repos.find(x=>x.name===card.dataset.r);
+        if(r) showDetail(r);
+      });
+    });
+  }
+
   cats.forEach(cat=>{
     const cr=getOrderedRepos(cat.id);
     const isBuiltin=['fun','edu','work','other'].includes(cat.id);
@@ -517,7 +563,7 @@ function renderDash(){
       </div>
       <div class="bbd" id="bb-${cat.id}" data-cid="${cat.id}">
         ${cr.length===0?'<div class="bempty">Drop repos here</div>':''}
-        ${(expandedCats[cat.id]?cr:cr.slice(0,CAT_LIMIT)).map(cardH).join('')}
+        ${(expandedCats[cat.id]?cr:cr.slice(0,CAT_LIMIT)).map(r=>cardH(r,false)).join('')}
         ${cr.length>CAT_LIMIT?`<button class="expand-btn" onclick="toggleExpand('${cat.id}')">${expandedCats[cat.id]?'Show less ↑':'Show '+(cr.length-CAT_LIMIT)+' more ↓'}</button>`:''}
       </div>`;
     grid.appendChild(box);
@@ -648,25 +694,35 @@ function renderDash(){
       moveRepo(srcName, tgtCatId, tgtName, e.clientY<rect.top+rect.height/2);
     });
     card.addEventListener('click',e=>{
-      if(e.target.closest('.csel')) return;
+      if(e.target.closest('.csel')||e.target.closest('.star-btn')) return;
       const r=repos.find(x=>x.name===card.dataset.r);
       if(r) showDetail(r);
     });
   });
 }
 
-function cardH(r){
+const STAR_SVG=`<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+
+function cardH(r, inFavs=false){
   const lc=(r.language||'other').toLowerCase().replace(/\s/g,'');
   const desc=r.ai_description||r.description||'';
   const dc=r.ai_description?'rd ai':'rd';
-  return `<div class="rcard" draggable="true" data-r="${esc(r.name)}">
-    <div class="rt"><div class="rn">${esc(r.name)}</div><span class="lb l-${lc}">${esc(r.language||'?')}</span></div>
+  const isStarred=starred.has(r.name);
+  const catName=cats.find(c=>c.id===r.category)?.name||'';
+  return `<div class="rcard" draggable="${inFavs?'false':'true'}" data-r="${esc(r.name)}">
+    <div class="rt">
+      <div class="rn">${esc(r.name)}</div>
+      <span class="lb l-${lc}">${esc(r.language||'?')}</span>
+      <button class="star-btn${isStarred?' on':''}" onclick="toggleStar('${esc(r.name)}');event.stopPropagation()" title="${isStarred?'Unstar':'Star'}">${STAR_SVG}</button>
+    </div>
     ${desc?`<div class="${dc}">${esc(desc)}</div>`:''}
     <div class="rb">
       <span class="rdate">${fdate(r.pushed_at)}</span>
-      <select class="csel" onchange="setcat('${esc(r.name)}',this.value)" onclick="event.stopPropagation()">
-        ${cats.map(c=>`<option value="${c.id}"${c.id===r.category?' selected':''}>${esc(c.name)}</option>`).join('')}
-      </select>
+      ${inFavs
+        ?`<span class="cat-badge">${esc(catName)}</span>`
+        :`<select class="csel" onchange="setcat('${esc(r.name)}',this.value)" onclick="event.stopPropagation()">
+          ${cats.map(c=>`<option value="${c.id}"${c.id===r.category?' selected':''}>${esc(c.name)}</option>`).join('')}
+        </select>`}
     </div>
   </div>`;
 }
@@ -694,6 +750,12 @@ function startRename(id){
   inp.addEventListener('blur',done);
 }
 
+function toggleStar(name){
+  if(starred.has(name)) starred.delete(name); else starred.add(name);
+  lsSet('rv_starred',[...starred]);
+  renderDash();
+}
+
 function toggleExpand(catId){ expandedCats[catId]=!expandedCats[catId]; renderDash(); }
 
 function delCat(id){
@@ -719,6 +781,10 @@ function showDetail(r){
   const lc=(r.language||'other').toLowerCase().replace(/\s/g,'');
   const lb=document.getElementById('sblng'); lb.textContent=r.language||'?'; lb.className='lb l-'+lc;
   document.getElementById('sbdt').textContent='pushed '+fdate(r.pushed_at);
+  const sbstar=document.getElementById('sbstar');
+  sbstar.className='star-btn'+(starred.has(r.name)?' on':'');
+  sbstar.title=starred.has(r.name)?'Unstar':'Star';
+  sbstar.onclick=()=>{toggleStar(r.name);showDetail(r);};
   fillSbCat(r.category);
   document.getElementById('ghlink').href=r.html_url;
   const ai=document.getElementById('sbai');
