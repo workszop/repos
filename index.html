@@ -107,7 +107,9 @@ input.fi::placeholder{color:var(--mu)}
 .cp.sel{border-color:var(--tx)}
 
 /* ── Repo card ── */
-.rcard{background:var(--sf2);border:1px solid var(--bd2);border-radius:8px;padding:14px;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;position:relative}
+.rcard{background:var(--sf2);border:1px solid var(--bd2);border-radius:8px;padding:14px;cursor:grab;transition:border-color .15s,box-shadow .15s,transform .15s;position:relative}
+.rcard:active{cursor:grabbing}
+.rcard[draggable="false"]{cursor:pointer}
 .rcard:hover{border-color:var(--bd);transform:translateY(-2px);box-shadow:var(--sh)}
 .rcard.dragging-card{opacity:.3;pointer-events:none}
 /* Drop-before/after indicator lines */
@@ -384,7 +386,7 @@ const SEED=[
 const COLORS=['coral','sky','sage','lav','amber','teal','rose','mint'];
 const DEF_CATS=[{id:'fun',name:'Fun',col:'coral'},{id:'edu',name:'Edu',col:'sky'},{id:'work',name:'Work',col:'sage'},{id:'other',name:'Other',col:'lav'}];
 
-const CAT_LIMIT=9;
+const CAT_LIMIT=4;
 let repos=[], cats=[], activeRepo=null, addingNew=false, newCol='amber';
 let repoOrder={};           // { catId: [name, ...] }  — order within each box
 let expandedCats={};        // { catId: true }
