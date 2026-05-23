@@ -831,22 +831,38 @@ async function generateAiDesc(){
   ai.innerHTML='<em style="color:var(--mu);font-size:13px">Generating…</em><span class="spn" style="margin-left:8px;display:inline-block"></span>';
 
   try{
-    // pick the most informative file: code entry point first, README as fallback
+    const s=lsGet('rv_s',{}),gh={'Accept':'application/vnd.github.v3+json'};
+    if(s.ght) gh['Authorization']='token '+s.ght;
+    const owner=r.html_url.replace('https://github.com/','').split('/')[0];
+
+    // 1. Ensure we have a file list — fetch it if missing
+    let files=r.files||[];
+    if(files.length===0){
+      const listRes=await fetch(`https://api.github.com/repos/${owner}/${r.name}/contents`,{headers:gh});
+      if(listRes.ok){
+        const items=await listRes.json();
+        files=items.map(i=>i.name);
+        r.files=files;
+        saveState();
+      }
+    }
+
+    // 2. Pick key file: code entry point first, README as fallback
     const CODE_PRIO=['index.html','app.html','main.py','app.py','index.js','app.js','main.js','main.go','main.ts','App.tsx','App.jsx'];
-    const files=r.files||[];
     const keyFile=CODE_PRIO.find(f=>files.includes(f))||files.find(f=>/readme/i.test(f))||files[0];
 
+    // 3. Fetch file content — try main then master branch
     let fileContent='';
     if(keyFile){
-      const owner=r.html_url.replace('https://github.com/','').split('/')[0];
-      const raw=`https://raw.githubusercontent.com/${owner}/${r.name}/main/${keyFile}`;
-      const res=await fetch(raw);
-      if(res.ok) fileContent=(await res.text()).slice(0,6000);
+      for(const branch of ['main','master']){
+        const res=await fetch(`https://raw.githubusercontent.com/${owner}/${r.name}/${branch}/${keyFile}`);
+        if(res.ok){fileContent=(await res.text()).slice(0,6000);break;}
+      }
     }
 
     const prompt=`Repository: ${r.name}
 Language: ${r.language||'unknown'}
-All files: ${files.join(', ')}
+All files: ${files.join(', ')||'(unavailable)'}
 ${fileContent?`\nKey file (${keyFile}):\n\`\`\`\n${fileContent}\n\`\`\`\n`:''}
 Write a 2–3 sentence description of what this repository does. Be specific and concrete. No preamble, start directly.`;
 
