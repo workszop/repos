@@ -300,8 +300,7 @@ input.fi::placeholder{color:var(--mu)}
           <div class="pfw vp-desktop" id="pfw">
             <iframe id="pif" class="pif" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" src="about:blank"></iframe>
             <div class="pfb" id="pfb">
-              <div class="ftv" id="ftv"></div>
-              <p style="font-size:12px;color:var(--mu);margin-top:4px">No GitHub Pages preview — showing file tree</p>
+              <div class="ftv" id="ftv" style="line-height:1.7"></div>
             </div>
           </div>
         </div>
@@ -801,7 +800,7 @@ function showDetail(r){
   const ifr=document.getElementById('pif'),fb=document.getElementById('pfb');
   document.getElementById('addr').textContent=r.preview_url||r.html_url;
   if(hasPv){ifr.style.display='block';fb.classList.remove('on');ifr.src=r.preview_url;}
-  else{ifr.style.display='none';fb.classList.add('on');document.getElementById('addr').textContent=r.html_url;document.getElementById('ftv').innerHTML=(r.files||[]).map(f=>`<div>${esc(f)}</div>`).join('')||'<div style="color:var(--mu)">No file data</div>';}
+  else{ifr.style.display='none';fb.classList.add('on');document.getElementById('addr').textContent=r.html_url;showFileFallback(r);}
   sv('v1','v2'); setVp('desktop');
 }
 
@@ -878,6 +877,39 @@ Write a 2–3 sentence description of what this repository does. Be specific and
 
 function fillSbCat(active){
   document.getElementById('sbcat').innerHTML=cats.map(c=>`<option value="${c.id}"${c.id===active?' selected':''}>${esc(c.name)}</option>`).join('');
+}
+
+function fileIcon(name){
+  const ext=(name.split('.').pop()||'').toLowerCase();
+  const m={html:'🌐',htm:'🌐',css:'🎨',js:'⚡',ts:'⚡',jsx:'⚡',tsx:'⚡',py:'🐍',go:'🐹',rs:'🦀',java:'☕',rb:'💎',php:'🐘',md:'📝',txt:'📝',json:'📋',yml:'📋',yaml:'📋',toml:'📋',png:'🖼',jpg:'🖼',jpeg:'🖼',gif:'🖼',svg:'🖼',ico:'🖼',mp4:'🎬',mp3:'🎵',pdf:'📄',zip:'📦',tar:'📦',sh:'⚙',bat:'⚙',env:'🔑',lock:'🔒'};
+  return m[ext]||'📄';
+}
+
+async function showFileFallback(r){
+  const ftv=document.getElementById('ftv');
+  if(r.files&&r.files.length>0){
+    ftv.innerHTML=r.files.map(f=>`<div style="display:flex;align-items:center;gap:8px;padding:2px 0">${fileIcon(f)}&nbsp;<span style="font-family:'IBM Plex Mono',monospace;font-size:12px">${esc(f)}</span></div>`).join('');
+    return;
+  }
+  ftv.innerHTML='<div style="color:var(--mu);font-size:13px">Loading…</div>';
+  try{
+    const s=lsGet('rv_s',{}),h={'Accept':'application/vnd.github.v3+json'};
+    if(s.ght) h['Authorization']='token '+s.ght;
+    const owner=r.html_url.replace('https://github.com/','').split('/')[0];
+    const res=await fetch(`https://api.github.com/repos/${owner}/${r.name}/contents`,{headers:h});
+    if(!res.ok) throw new Error('GitHub '+res.status);
+    const items=await res.json();
+    r.files=items.map(i=>i.name);
+    saveState();
+    ftv.innerHTML=items.map(item=>{
+      const isDir=item.type==='dir';
+      const icon=isDir?'📁':fileIcon(item.name);
+      const sz=!isDir&&item.size?`<span style="margin-left:auto;color:var(--mu);font-size:11px;flex-shrink:0">${item.size<1024?item.size+' B':Math.ceil(item.size/1024)+' KB'}</span>`:'';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">${icon}&nbsp;<span style="font-family:'IBM Plex Mono',monospace;font-size:12px;${isDir?'color:var(--tx);font-weight:500':''}">${esc(item.name)}</span>${sz}</div>`;
+    }).join('')||'<div style="color:var(--mu)">Empty repository</div>';
+  }catch(e){
+    ftv.innerHTML=`<div style="color:var(--coral);font-size:13px">Could not load files: ${esc(e.message)}</div>`;
+  }
 }
 
 function showDash(){sv('v2','v1');document.getElementById('pif').src='about:blank';}
