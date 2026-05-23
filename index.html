@@ -72,18 +72,19 @@ input.fi::placeholder{color:var(--mu)}
 .cbox{background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;transition:border-color .15s,box-shadow .15s,opacity .15s}
 .cbox.dragging-box{opacity:.45}
 /* Insert-before/after indicators for box reordering */
-.cbox.drop-left{box-shadow:inset 4px 0 0 var(--ac)}
-.cbox.drop-right{box-shadow:inset -4px 0 0 var(--ac)}
+.cbox.drop-left{box-shadow:inset 4px 0 0 var(--ac),0 0 0 2px color-mix(in srgb,var(--ac) 20%,transparent);border-color:color-mix(in srgb,var(--ac) 40%,var(--bd))}
+.cbox.drop-right{box-shadow:inset -4px 0 0 var(--ac),0 0 0 2px color-mix(in srgb,var(--ac) 20%,transparent);border-color:color-mix(in srgb,var(--ac) 40%,var(--bd))}
 .cbox.dov{border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 15%,transparent)}
 
 .bh{display:flex;align-items:center;gap:10px;padding:14px 18px 14px 6px;border-bottom:1px solid var(--bd);position:relative}
 .bh::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:0 3px 3px 0;background:var(--cc,transparent)}
 
-/* Grip handle */
-.grip{cursor:grab;color:var(--bd);padding:4px 6px 4px 8px;display:flex;align-items:center;flex-shrink:0;transition:color .15s;border-radius:4px}
-.grip:hover{color:var(--mu)}
-.grip:active{cursor:grabbing}
+/* Grip handle — visual only, whole header is now the drag surface */
+.grip{color:var(--bd);padding:4px 6px 4px 8px;display:flex;align-items:center;flex-shrink:0;pointer-events:none}
 .grip svg{display:block;width:10px;height:14px}
+.bh{cursor:grab}
+.bh:active{cursor:grabbing}
+.cbox.dragging-box .bh{cursor:grabbing}
 
 .bdot2{width:11px;height:11px;border-radius:50%;flex-shrink:0;background:var(--cc,var(--mu))}
 .bname{font-weight:700;font-size:15px;letter-spacing:.01em;color:var(--cc,var(--tx));flex:1;min-width:0}
@@ -477,9 +478,11 @@ function ensureOrder(catId){
 function moveRepo(srcName, tgtCatId, tgtName, insertBefore){
   const r=repos.find(x=>x.name===srcName); if(!r||srcName===tgtName) return;
   const oldCat=r.category;
-  // category updated AFTER order manipulation so ensureOrder reads correct state
+  r.category=tgtCatId;
   ensureOrder(oldCat); ensureOrder(tgtCatId);
+  // Remove from old order
   repoOrder[oldCat]=repoOrder[oldCat].filter(n=>n!==srcName);
+  // Prepare target order (may now include repos from both sides if same cat)
   if(oldCat!==tgtCatId){
     repoOrder[tgtCatId]=repoOrder[tgtCatId].filter(n=>repos.find(x=>x.name===n));
   }
@@ -489,7 +492,6 @@ function moveRepo(srcName, tgtCatId, tgtName, insertBefore){
     const ti=arr.indexOf(tgtName);
     ti===-1 ? arr.push(srcName) : arr.splice(insertBefore?ti:ti+1,0,srcName);
   }
-  r.category=tgtCatId;
   saveState(); renderDash();
   if(activeRepo?.name===srcName) fillSbCat(tgtCatId);
 }
@@ -567,17 +569,18 @@ function renderDash(){
       </div>`;
     grid.appendChild(box);
 
-    /* ── Box drag (via grip) ── */
-    const grip=box.querySelector('.grip');
-    grip.draggable=true;
-    grip.addEventListener('dragstart',e=>{
+    /* ── Box drag (whole header is the drag surface) ── */
+    const header=box.querySelector('.bh');
+    header.draggable=true;
+    header.addEventListener('dragstart',e=>{
+      if(e.target.closest('.bacts')||e.target.closest('.bname-in')){e.preventDefault();return;}
       e.stopPropagation();
       dragType='box'; dragBoxId=cat.id;
       e.dataTransfer.effectAllowed='move';
       e.dataTransfer.setData('box',cat.id);
       requestAnimationFrame(()=>box.classList.add('dragging-box'));
     });
-    grip.addEventListener('dragend',()=>{
+    header.addEventListener('dragend',()=>{
       dragType=null; dragBoxId=null;
       box.classList.remove('dragging-box');
       document.querySelectorAll('.cbox').forEach(b=>b.classList.remove('drop-left','drop-right'));
