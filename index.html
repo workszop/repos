@@ -262,6 +262,7 @@ input.fi::placeholder{color:var(--mu)}
         Load Repos
       </button>
       <div id="spin"><div class="spn"></div><span>Fetching…</span></div>
+      <input type="text" class="fi" id="srch" placeholder="Search repos…" oninput="setSearch(this.value)" style="max-width:200px;flex:1">
     </div>
     <button class="ib" id="tbtn" onclick="toggleTheme()" title="Toggle theme">
       <svg id="ticon" viewBox="0 0 24 24"></svg>
@@ -282,7 +283,7 @@ input.fi::placeholder{color:var(--mu)}
           <div class="ptb">
             <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
             <div class="addr" id="addr">about:blank</div>
-            <button class="ib" style="padding:5px" onclick="reloadPv()" title="Reload">
+            <button class="ib" style="padding:5px" onclick="refreshRepoData()" title="Reload repo data & preview">
               <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
             </button>
             <div class="vptgl">
@@ -387,6 +388,7 @@ const DEF_CATS=[{id:'fun',name:'Fun',col:'coral'},{id:'edu',name:'Edu',col:'sky'
 
 const CAT_LIMIT=4;
 let repos=[], cats=[], activeRepo=null, addingNew=false, newCol='amber';
+let searchQ='';
 let repoOrder={};           // { catId: [name, ...] }  — order within each box
 let expandedCats={};        // { catId: true }
 let starred=new Set();      // repo names
@@ -442,7 +444,7 @@ async function loadRepos(){
   try{
     const s=lsGet('rv_s',{}),h={'Accept':'application/vnd.github.v3+json'};
     if(s.ght) h['Authorization']='token '+s.ght;
-    const res=await fetch(`https://api.github.com/users/${u}/repos?sort=pushed&per_page=50`,{headers:h});
+    const res=await fetch(`https://api.github.com/users/${u}/repos?sort=pushed&per_page=100`,{headers:h});
     if(!res.ok) throw new Error('GitHub API '+res.status);
     const data=await res.json();
     const savedRC=lsGet('rv_rc',{}),by={};
@@ -513,7 +515,7 @@ function renderDash(){
   grid.innerHTML='';
 
   /* ── Favourites box (auto, read-only) ── */
-  const favRepos=repos.filter(r=>starred.has(r.name));
+  const favRepos=repos.filter(r=>starred.has(r.name)&&matchSearch(r));
   if(favRepos.length>0){
     const fbox=document.createElement('div');
     fbox.className='fav-box';
@@ -537,7 +539,8 @@ function renderDash(){
   }
 
   cats.forEach(cat=>{
-    const cr=getOrderedRepos(cat.id);
+    const cr=getOrderedRepos(cat.id).filter(matchSearch);
+    if(searchQ&&cr.length===0)return;
     const isBuiltin=['fun','edu','work','other'].includes(cat.id);
     const canDel=!isBuiltin&&cr.length===0;
     const box=document.createElement('div');
@@ -565,8 +568,8 @@ function renderDash(){
       </div>
       <div class="bbd" id="bb-${cat.id}" data-cid="${cat.id}">
         ${cr.length===0?'<div class="bempty">Drop repos here</div>':''}
-        ${(expandedCats[cat.id]?cr:cr.slice(0,CAT_LIMIT)).map(r=>cardH(r,false)).join('')}
-        ${cr.length>CAT_LIMIT?`<button class="expand-btn" onclick="toggleExpand('${cat.id}')">${expandedCats[cat.id]?'Show less ↑':'Show '+(cr.length-CAT_LIMIT)+' more ↓'}</button>`:''}
+        ${(searchQ||expandedCats[cat.id]?cr:cr.slice(0,CAT_LIMIT)).map(r=>cardH(r,false)).join('')}
+        ${!searchQ&&cr.length>CAT_LIMIT?`<button class="expand-btn" onclick="toggleExpand('${cat.id}')">${expandedCats[cat.id]?'Show less ↑':'Show '+(cr.length-CAT_LIMIT)+' more ↓'}</button>`:''}
       </div>`;
     grid.appendChild(box);
 
@@ -965,6 +968,36 @@ function fdate(iso){
 function fsize(kb){return !kb?'0 KB':kb<1024?kb+' KB':(kb/1024).toFixed(1)+' MB';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+
+function setSearch(v){searchQ=v.toLowerCase().trim();renderDash();}
+function matchSearch(r){
+  if(!searchQ)return true;
+  return r.name.toLowerCase().includes(searchQ)
+    ||(r.description||'').toLowerCase().includes(searchQ)
+    ||(r.ai_description||'').toLowerCase().includes(searchQ)
+    ||(r.language||'').toLowerCase().includes(searchQ);
+}
+
+async function refreshRepoData(){
+  if(!activeRepo){reloadPv();return;}
+  const s=lsGet('rv_s',{}),h={'Accept':'application/vnd.github.v3+json'};
+  if(s.ght)h['Authorization']='token '+s.ght;
+  const owner=activeRepo.html_url.replace('https://github.com/','').split('/')[0];
+  try{
+    const res=await fetch(`https://api.github.com/repos/${owner}/${activeRepo.name}`,{headers:h});
+    if(!res.ok)throw new Error('GitHub '+res.status);
+    const d=await res.json();
+    const idx=repos.findIndex(r=>r.name===d.name);
+    if(idx!==-1){
+      repos[idx]={...repos[idx],language:d.language||'Other',pushed_at:d.pushed_at,size:d.size,
+        stargazers_count:d.stargazers_count,forks_count:d.forks_count,description:d.description};
+      activeRepo=repos[idx];
+      saveState();
+      showDetail(activeRepo);
+    }
+  }catch(e){console.error('Refresh failed:',e);}
+  reloadPv();
+}
 init();
 </script>
 </body>
