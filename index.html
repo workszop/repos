@@ -799,7 +799,7 @@ function showDetail(r){
     {l:'Language',v:r.language||'—'},{l:'Size',v:fsize(r.size)}
   ].map(s=>`<div class="st"><div class="stl">${s.l}</div><div class="stv">${esc(s.v)}</div></div>`).join('');
   document.getElementById('sbfl').innerHTML=(r.files||[]).map(f=>`<div class="fi">${esc(f)}</div>`).join('')||'<div class="fi" style="font-style:italic;color:var(--mu)">No file data</div>';
-  const hasPv=r.preview_url&&(r.language==='HTML'||r.language==='JavaScript');
+  const hasPv=r.preview_url&&(r.language==='HTML'||r.language==='JavaScript'||(r.files||[]).includes('index.html'));
   const ifr=document.getElementById('pif'),fb=document.getElementById('pfb');
   document.getElementById('addr').textContent=r.preview_url||r.html_url;
   if(hasPv){ifr.style.display='block';fb.classList.remove('on');ifr.src=r.preview_url;}
