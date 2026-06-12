@@ -36,7 +36,8 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
 
 /* ── Header ── */
 #hdr{display:flex;align-items:center;gap:12px;padding:13px 24px;background:var(--bg);border-bottom:1px solid var(--bd);flex-shrink:0;z-index:100}
-.logo{font-weight:800;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo{font-weight:800;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:10px;flex-shrink:0;cursor:pointer;border-radius:8px}
+.logo:hover{color:var(--ac)}
 .logo-mark{width:32px;height:32px;background:linear-gradient(135deg,var(--ac),var(--pu));border-radius:8px;display:grid;place-items:center;flex-shrink:0}
 .logo-mark svg{stroke:#fff;fill:none;width:16px;height:16px;stroke-width:2.2}
 .hdr-sep{width:1px;height:22px;background:var(--bd);flex-shrink:0}
@@ -108,6 +109,7 @@ input.fi::placeholder{color:var(--mu)}
 
 /* ── Repo card ── */
 .rcard{background:var(--sf2);border:1px solid var(--bd2);border-radius:8px;padding:14px;cursor:grab;transition:border-color .15s,box-shadow .15s,transform .15s;position:relative}
+.rcard.selected{border-color:var(--ac);box-shadow:0 0 0 2px color-mix(in srgb,var(--ac) 18%,transparent)}
 .rcard:active{cursor:grabbing}
 .rcard[draggable="false"]{cursor:pointer}
 .rcard:hover{border-color:var(--bd);transform:translateY(-2px);box-shadow:var(--sh)}
@@ -118,6 +120,14 @@ input.fi::placeholder{color:var(--mu)}
 
 .rt{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px}
 .rn{font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:400;color:var(--tx);word-break:break-all;line-height:1.4;flex:1;min-width:0}
+.select-btn{width:17px;height:17px;border:1px solid var(--bd);background:var(--bg);border-radius:4px;color:transparent;display:grid;place-items:center;cursor:pointer;flex-shrink:0;margin-top:1px;transition:all .15s}
+.select-btn:hover{border-color:var(--ac)}
+.select-btn.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.select-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:3}
+.rmeta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.preview-pill{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 7px;border-radius:9px;border:1px solid;white-space:nowrap}
+.preview-pill.on{color:var(--sage);border-color:color-mix(in srgb,var(--sage) 35%,transparent);background:color-mix(in srgb,var(--sage) 8%,transparent)}
+.preview-pill.off{color:var(--mu);border-color:var(--bd);background:transparent}
 
 /* ── Star button ── */
 .star-btn{background:transparent;border:none;color:var(--bd);padding:2px;cursor:pointer;display:grid;place-items:center;flex-shrink:0;transition:color .15s,transform .15s;border-radius:4px;margin-top:1px}
@@ -147,6 +157,21 @@ input.fi::placeholder{color:var(--mu)}
 .rdate{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mu)}
 .csel{background:var(--bg);border:1px solid var(--bd);border-radius:5px;color:var(--mu);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 6px;cursor:pointer;outline:none;transition:border-color .15s;max-width:110px}
 .csel:hover{border-color:var(--ac);color:var(--tx)}
+.card-actions{display:flex;align-items:center;gap:5px;margin-top:10px}
+.act-btn{display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;padding:4px 8px;text-decoration:none;transition:all .15s}
+.act-btn:hover{color:var(--tx);border-color:var(--ac)}
+.act-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2}
+.act-btn.disabled{opacity:.45;pointer-events:none}
+
+/* Bulk tools */
+.bulk-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}
+.bulk-title{font-weight:700;font-size:13px;color:var(--tx);margin-right:auto}
+.bulk-count{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--mu);margin-left:4px}
+.bulk-select{background:var(--bg);border:1px solid var(--bd);border-radius:7px;color:var(--tx);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;padding:7px 10px;outline:none;max-width:160px}
+.bulk-btn{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--bd);border-radius:7px;color:var(--mu);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;padding:7px 10px;cursor:pointer;transition:all .15s}
+.bulk-btn:hover:not(:disabled){color:var(--tx);border-color:var(--ac)}
+.bulk-btn:disabled{opacity:.45;cursor:not-allowed}
+.bulk-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.3}
 
 /* Expand button */
 .expand-btn{grid-column:1/-1;width:100%;background:transparent;border:1px dashed var(--bd);border-radius:7px;color:var(--mu);font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;padding:8px;cursor:pointer;transition:all .15s}
@@ -206,8 +231,12 @@ input.fi::placeholder{color:var(--mu)}
 .stl{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
 .stv{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--tx);font-weight:500}
 .fl{display:flex;flex-direction:column;gap:1px;max-height:220px;overflow-y:auto}
-.fi{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--mu);padding:5px 10px;border-radius:5px;transition:background .15s}
-.fi:hover{background:var(--sf2);color:var(--tx)}
+.fl .fi{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--mu);padding:5px 10px;border-radius:5px;transition:background .15s}
+.fl .fi:hover{background:var(--sf2);color:var(--tx)}
+
+.empty-state{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:160px;border:1px dashed var(--bd);border-radius:12px;color:var(--mu);text-align:center}
+.empty-state strong{font-size:15px;color:var(--tx)}
+.empty-state span{font-size:13px}
 
 /* Settings */
 #sp{position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-end;justify-content:flex-end;padding:20px;pointer-events:none}
@@ -242,13 +271,54 @@ input.fi::placeholder{color:var(--mu)}
 .cbox[data-col="teal"]{--cc:var(--teal)}
 .cbox[data-col="rose"]{--cc:var(--rose)}
 .cbox[data-col="mint"]{--cc:var(--mint)}
+
+@media (max-width: 900px){
+  #hdr{align-items:flex-start;gap:10px;padding:12px 14px;flex-wrap:wrap}
+  .hdr-sep{display:none}
+  .hdr-r{order:2;flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px}
+  input.fi{width:100%;min-width:0}
+  #spin{grid-column:1/-1}
+  #v1{padding:14px}
+  .bulk-bar{flex-wrap:wrap}
+  .bulk-title{flex-basis:100%;margin-right:0}
+  .cat-grid{grid-template-columns:1fr;gap:14px}
+  .dl{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+  .pp{border-right:0;border-bottom:1px solid var(--bd);min-height:48vh}
+  .dsb{max-height:42vh}
+  .sbb{padding:16px}
+}
+
+@media (max-width: 560px){
+  #app{height:100dvh}
+  #hdr{padding:10px}
+  .logo{font-size:16px}
+  .logo-mark{width:28px;height:28px}
+  .hdr-r{grid-template-columns:1fr 44px;align-items:stretch}
+  .hdr-r .btn.bp{width:44px;padding:0;justify-content:center}
+  .hdr-r .btn.bp svg{width:16px;height:16px}
+  .hdr-r .btn.bp{font-size:0;gap:0}
+  #srch{grid-column:1/-1;max-width:none!important}
+  .bh,.fav-bh{padding-right:12px;gap:8px}
+  .bbd{grid-template-columns:1fr;padding:12px}
+  .rt{align-items:flex-start;flex-wrap:nowrap}
+  .rmeta,.card-actions{gap:5px}
+  .act-btn{flex:1;justify-content:center}
+  .bulk-select{flex:1;min-width:0}
+  .bulk-btn{flex:1;justify-content:center}
+  .ptb{gap:8px;padding:9px 10px;flex-wrap:wrap}
+  .addr{order:3;flex-basis:100%;min-width:0}
+  .pfw.vp-mobile{padding:10px}
+  .pfw.vp-mobile .pif{width:100%}
+  .sdrw{width:min(100%,320px)}
+  #sp{padding:10px}
+}
 </style>
 </head>
 <body>
 <div id="app">
 
   <header id="hdr">
-    <div class="logo">
+    <div class="logo" onclick="goHome()" title="Home">
       <div class="logo-mark">
         <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
       </div>
@@ -274,6 +344,7 @@ input.fi::placeholder{color:var(--mu)}
 
   <main id="main">
     <div id="v1" class="view shown">
+      <div class="bulk-bar" id="bulkbar"></div>
       <div class="cat-grid" id="cgrid"></div>
     </div>
 
@@ -392,6 +463,8 @@ let searchQ='';
 let repoOrder={};           // { catId: [name, ...] }  — order within each box
 let expandedCats={};        // { catId: true }
 let starred=new Set();      // repo names
+let selectedRepos=new Set(); // repo names selected for bulk actions
+let visibleRepoNames=[];     // repo names currently visible on dashboard
 let dragType=null;          // 'card' | 'box'
 let dragCardName=null;
 let dragBoxId=null;
@@ -458,6 +531,7 @@ async function loadRepos(){
       category:savedRC[d.name]||by[d.name]?.category||'other',
       ai_description:by[d.name]?.ai_description||null
     }));
+    selectedRepos=new Set([...selectedRepos].filter(n=>repos.some(r=>r.name===n)));
     saveState(); renderDash();
   }catch(e){alert('Error: '+e.message);}
   finally{sp.classList.remove('on');}
@@ -513,10 +587,16 @@ function moveCat(srcId, tgtId, before){
 function renderDash(){
   const grid=document.getElementById('cgrid');
   grid.innerHTML='';
+  let visibleSections=0;
+  const existingNames=new Set(repos.map(r=>r.name));
+  selectedRepos=new Set([...selectedRepos].filter(n=>existingNames.has(n)));
+  visibleRepoNames=[];
 
   /* ── Favourites box (auto, read-only) ── */
   const favRepos=repos.filter(r=>starred.has(r.name)&&matchSearch(r));
   if(favRepos.length>0){
+    visibleSections++;
+    favRepos.forEach(r=>visibleRepoNames.push(r.name));
     const fbox=document.createElement('div');
     fbox.className='fav-box';
     fbox.innerHTML=`
@@ -531,7 +611,7 @@ function renderDash(){
     grid.appendChild(fbox);
     fbox.querySelectorAll('.rcard').forEach(card=>{
       card.addEventListener('click',e=>{
-        if(e.target.closest('.star-btn')||e.target.closest('.csel')) return;
+        if(e.target.closest('.star-btn')||e.target.closest('.select-btn')||e.target.closest('.csel')||e.target.closest('.act-btn')) return;
         const r=repos.find(x=>x.name===card.dataset.r);
         if(r) showDetail(r);
       });
@@ -541,6 +621,9 @@ function renderDash(){
   cats.forEach(cat=>{
     const cr=getOrderedRepos(cat.id).filter(matchSearch);
     if(searchQ&&cr.length===0)return;
+    visibleSections++;
+    const shownRepos=searchQ||expandedCats[cat.id]?cr:cr.slice(0,CAT_LIMIT);
+    shownRepos.forEach(r=>visibleRepoNames.push(r.name));
     const isBuiltin=['fun','edu','work','other'].includes(cat.id);
     const canDel=!isBuiltin&&cr.length===0;
     const box=document.createElement('div');
@@ -568,7 +651,7 @@ function renderDash(){
       </div>
       <div class="bbd" id="bb-${cat.id}" data-cid="${cat.id}">
         ${cr.length===0?'<div class="bempty">Drop repos here</div>':''}
-        ${(searchQ||expandedCats[cat.id]?cr:cr.slice(0,CAT_LIMIT)).map(r=>cardH(r,false)).join('')}
+        ${shownRepos.map(r=>cardH(r,false)).join('')}
         ${!searchQ&&cr.length>CAT_LIMIT?`<button class="expand-btn" onclick="toggleExpand('${cat.id}')">${expandedCats[cat.id]?'Show less ↑':'Show '+(cr.length-CAT_LIMIT)+' more ↓'}</button>`:''}
       </div>`;
     grid.appendChild(box);
@@ -632,6 +715,15 @@ function renderDash(){
     });
   });
 
+  if(searchQ&&visibleSections===0){
+    const empty=document.createElement('div');
+    empty.className='empty-state';
+    empty.innerHTML=`<strong>No matching repositories</strong><span>Try a different repo name, language, or description.</span>`;
+    grid.appendChild(empty);
+  }
+  visibleRepoNames=[...new Set(visibleRepoNames)];
+  renderBulkBar();
+
   /* ── Add category tile ── */
   const slot=document.createElement('div');
   if(addingNew){
@@ -662,45 +754,48 @@ function renderDash(){
 
   /* ── Card drag events ── */
   document.querySelectorAll('.rcard').forEach(card=>{
-    card.addEventListener('dragstart',e=>{
-      e.stopPropagation();
-      dragType='card'; dragCardName=card.dataset.r;
-      e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('rn',card.dataset.r);
-      requestAnimationFrame(()=>card.classList.add('dragging-card'));
-    });
-    card.addEventListener('dragend',()=>{
-      dragType=null; dragCardName=null;
-      card.classList.remove('dragging-card');
-      document.querySelectorAll('.rcard').forEach(c=>c.classList.remove('drop-before','drop-after'));
-    });
-    card.addEventListener('dragover',e=>{
-      if(dragType!=='card') return;
-      e.preventDefault(); e.stopPropagation();
-      const rect=card.getBoundingClientRect(), mid=rect.top+rect.height/2;
-      const before=e.clientY<mid;
-      card.classList.toggle('drop-before',before);
-      card.classList.toggle('drop-after',!before);
-      // clear indicators on other cards
-      document.querySelectorAll('.rcard').forEach(c=>{
-        if(c!==card){ c.classList.remove('drop-before','drop-after'); }
+    if(card.getAttribute('draggable')!=='false'){
+      card.addEventListener('dragstart',e=>{
+        if(e.target.closest('.select-btn')||e.target.closest('.star-btn')||e.target.closest('.csel')||e.target.closest('.act-btn')){e.preventDefault();return;}
+        e.stopPropagation();
+        dragType='card'; dragCardName=card.dataset.r;
+        e.dataTransfer.effectAllowed='move';
+        e.dataTransfer.setData('rn',card.dataset.r);
+        requestAnimationFrame(()=>card.classList.add('dragging-card'));
       });
-    });
-    card.addEventListener('dragleave',e=>{
-      if(!card.contains(e.relatedTarget)) card.classList.remove('drop-before','drop-after');
-    });
-    card.addEventListener('drop',e=>{
-      if(dragType!=='card') return;
-      e.preventDefault(); e.stopPropagation();
-      card.classList.remove('drop-before','drop-after');
-      const srcName=e.dataTransfer.getData('rn');
-      const tgtName=card.dataset.r;
-      const tgtCatId=card.closest('.bbd').dataset.cid;
-      const rect=card.getBoundingClientRect();
-      moveRepo(srcName, tgtCatId, tgtName, e.clientY<rect.top+rect.height/2);
-    });
+      card.addEventListener('dragend',()=>{
+        dragType=null; dragCardName=null;
+        card.classList.remove('dragging-card');
+        document.querySelectorAll('.rcard').forEach(c=>c.classList.remove('drop-before','drop-after'));
+      });
+      card.addEventListener('dragover',e=>{
+        if(dragType!=='card') return;
+        e.preventDefault(); e.stopPropagation();
+        const rect=card.getBoundingClientRect(), mid=rect.top+rect.height/2;
+        const before=e.clientY<mid;
+        card.classList.toggle('drop-before',before);
+        card.classList.toggle('drop-after',!before);
+        // clear indicators on other cards
+        document.querySelectorAll('.rcard').forEach(c=>{
+          if(c!==card){ c.classList.remove('drop-before','drop-after'); }
+        });
+      });
+      card.addEventListener('dragleave',e=>{
+        if(!card.contains(e.relatedTarget)) card.classList.remove('drop-before','drop-after');
+      });
+      card.addEventListener('drop',e=>{
+        if(dragType!=='card') return;
+        e.preventDefault(); e.stopPropagation();
+        card.classList.remove('drop-before','drop-after');
+        const srcName=e.dataTransfer.getData('rn');
+        const tgtName=card.dataset.r;
+        const tgtCatId=card.closest('.bbd').dataset.cid;
+        const rect=card.getBoundingClientRect();
+        moveRepo(srcName, tgtCatId, tgtName, e.clientY<rect.top+rect.height/2);
+      });
+    }
     card.addEventListener('click',e=>{
-      if(e.target.closest('.csel')||e.target.closest('.star-btn')) return;
+      if(e.target.closest('.csel')||e.target.closest('.star-btn')||e.target.closest('.select-btn')||e.target.closest('.act-btn')) return;
       const r=repos.find(x=>x.name===card.dataset.r);
       if(r) showDetail(r);
     });
@@ -708,20 +803,29 @@ function renderDash(){
 }
 
 const STAR_SVG=`<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+const CHECK_SVG=`<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
+const OPEN_SVG=`<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+const EYE_SVG=`<svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
 function cardH(r, inFavs=false){
   const lc=(r.language||'other').toLowerCase().replace(/\s/g,'');
   const desc=r.ai_description||r.description||'';
   const dc=r.ai_description?'rd ai':'rd';
   const isStarred=starred.has(r.name);
+  const isSelected=selectedRepos.has(r.name);
+  const preview=hasPreview(r);
   const catName=cats.find(c=>c.id===r.category)?.name||'';
-  return `<div class="rcard" draggable="${inFavs?'false':'true'}" data-r="${esc(r.name)}">
+  return `<div class="rcard${isSelected?' selected':''}" draggable="${inFavs?'false':'true'}" data-r="${esc(r.name)}">
     <div class="rt">
+      <button class="select-btn${isSelected?' on':''}" onclick="toggleSelected('${esc(r.name)}');event.stopPropagation()" title="${isSelected?'Deselect':'Select'}">${CHECK_SVG}</button>
       <div class="rn">${esc(r.name)}</div>
-      <span class="lb l-${lc}">${esc(r.language||'?')}</span>
       <button class="star-btn${isStarred?' on':''}" onclick="toggleStar('${esc(r.name)}');event.stopPropagation()" title="${isStarred?'Unstar':'Star'}">${STAR_SVG}</button>
     </div>
-    ${desc?`<div class="${dc}">${esc(desc)}</div>`:''}
+    <div class="rmeta">
+      <span class="lb l-${lc}">${esc(r.language||'?')}</span>
+      <span class="preview-pill ${preview?'on':'off'}">${preview?'Preview':'No preview'}</span>
+    </div>
+    ${desc?`<div class="${dc}" title="${esc(desc)}">${esc(desc)}</div>`:''}
     <div class="rb">
       <span class="rdate">${fdate(r.pushed_at)}</span>
       ${inFavs
@@ -730,7 +834,69 @@ function cardH(r, inFavs=false){
           ${cats.map(c=>`<option value="${c.id}"${c.id===r.category?' selected':''}>${esc(c.name)}</option>`).join('')}
         </select>`}
     </div>
+    <div class="card-actions">
+      <a class="act-btn ${preview?'':'disabled'}" href="${esc(r.preview_url||'#')}" target="_blank" onclick="event.stopPropagation()" title="${preview?'Open preview':'No GitHub Pages preview'}">${EYE_SVG}Preview</a>
+      <a class="act-btn" href="${esc(r.html_url)}" target="_blank" onclick="event.stopPropagation()" title="Open GitHub repository">${OPEN_SVG}GitHub</a>
+    </div>
   </div>`;
+}
+
+function renderBulkBar(){
+  const bar=document.getElementById('bulkbar');
+  if(!bar) return;
+  const count=selectedRepos.size;
+  const selectedLabel=count===1?'1 selected':`${count} selected`;
+  const selectIcon='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg>';
+  const moveIcon='<svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
+  const clearIcon='<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  bar.innerHTML=`
+    <div class="bulk-title">Bulk organize <span class="bulk-count">${selectedLabel}</span></div>
+    <button class="bulk-btn" onclick="selectVisibleRepos()" ${visibleRepoNames.length?'':'disabled'}>${selectIcon}Select visible</button>
+    <select class="bulk-select" id="bulkcat" ${count?'':'disabled'}>
+      ${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+    </select>
+    <button class="bulk-btn" onclick="bulkMoveSelected()" ${count?'':'disabled'}>${moveIcon}Move</button>
+    <button class="bulk-btn" onclick="clearSelection()" ${count?'':'disabled'}>${clearIcon}Clear</button>`;
+}
+
+function toggleSelected(name){
+  if(selectedRepos.has(name)) selectedRepos.delete(name); else selectedRepos.add(name);
+  renderDash();
+}
+
+function selectVisibleRepos(){
+  visibleRepoNames.forEach(n=>selectedRepos.add(n));
+  renderDash();
+}
+
+function clearSelection(){
+  selectedRepos.clear();
+  renderDash();
+}
+
+function bulkMoveSelected(){
+  const catId=document.getElementById('bulkcat')?.value;
+  if(!catId||selectedRepos.size===0) return;
+  const names=[...selectedRepos].filter(n=>repos.some(r=>r.name===n));
+  names.forEach(name=>{
+    const r=repos.find(x=>x.name===name);
+    if(!r||r.category===catId) return;
+    const oldCat=r.category;
+    ensureOrder(oldCat);
+    ensureOrder(catId);
+    r.category=catId;
+    repoOrder[oldCat]=repoOrder[oldCat].filter(n=>n!==name);
+    repoOrder[catId]=repoOrder[catId].filter(n=>n!==name&&repos.some(x=>x.name===n));
+    repoOrder[catId].push(name);
+  });
+  selectedRepos.clear();
+  saveState();
+  renderDash();
+  if(activeRepo&&names.includes(activeRepo.name)) fillSbCat(activeRepo.category);
+}
+
+function hasPreview(r){
+  return !!(r.preview_url&&(r.language==='HTML'||r.language==='JavaScript'||(r.files||[]).includes('index.html')));
 }
 
 /* ── Category ops ── */
@@ -799,7 +965,7 @@ function showDetail(r){
     {l:'Language',v:r.language||'—'},{l:'Size',v:fsize(r.size)}
   ].map(s=>`<div class="st"><div class="stl">${s.l}</div><div class="stv">${esc(s.v)}</div></div>`).join('');
   document.getElementById('sbfl').innerHTML=(r.files||[]).map(f=>`<div class="fi">${esc(f)}</div>`).join('')||'<div class="fi" style="font-style:italic;color:var(--mu)">No file data</div>';
-  const hasPv=r.preview_url&&(r.language==='HTML'||r.language==='JavaScript'||(r.files||[]).includes('index.html'));
+  const hasPv=hasPreview(r);
   const ifr=document.getElementById('pif'),fb=document.getElementById('pfb');
   document.getElementById('addr').textContent=r.preview_url||r.html_url;
   if(hasPv){ifr.style.display='block';fb.classList.remove('on');ifr.src=r.preview_url;}
@@ -932,6 +1098,7 @@ async function showFileFallback(r){
 }
 
 function showDash(){sv('v2','v1');document.getElementById('pif').src='about:blank';}
+function goHome(){showDash();}
 function sv(h,s){
   document.getElementById(h).classList.remove('shown');document.getElementById(h).classList.add('hidden');
   document.getElementById(s).classList.remove('hidden');document.getElementById(s).classList.add('shown');
