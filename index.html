@@ -968,7 +968,7 @@ function showDetail(r){
   const hasPv=hasPreview(r);
   const ifr=document.getElementById('pif'),fb=document.getElementById('pfb');
   document.getElementById('addr').textContent=r.preview_url||r.html_url;
-  if(hasPv){ifr.style.display='block';fb.classList.remove('on');ifr.src=r.preview_url;}
+  if(hasPv){ifr.style.display='block';fb.classList.remove('on');ifr.src=bust(r.preview_url);}
   else{ifr.style.display='none';fb.classList.add('on');document.getElementById('addr').textContent=r.html_url;showFileFallback(r);}
   sv('v1','v2'); setVp('desktop');
 }
@@ -1104,7 +1104,7 @@ function sv(h,s){
   document.getElementById(s).classList.remove('hidden');document.getElementById(s).classList.add('shown');
 }
 function setVp(m){ document.getElementById('pfw').className='pfw vp-'+m; document.querySelectorAll('.vpb').forEach(b=>b.classList.toggle('act',b.dataset.vp===m)); }
-function reloadPv(){const f=document.getElementById('pif');f.src=f.src;}
+function reloadPv(){const f=document.getElementById('pif');if(activeRepo&&hasPreview(activeRepo)){f.src=bust(activeRepo.preview_url);}else{f.src=f.src;}}
 
 /* ── Theme ── */
 function toggleTheme(){
@@ -1134,6 +1134,8 @@ function fdate(iso){
 }
 function fsize(kb){return !kb?'0 KB':kb<1024?kb+' KB':(kb/1024).toFixed(1)+' MB';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// Append a unique query param so the browser/GitHub Pages CDN can't serve a stale cached preview.
+function bust(url){if(!url)return url;return url+(url.includes('?')?'&':'?')+'_cb='+Date.now();}
 
 
 function setSearch(v){searchQ=v.toLowerCase().trim();renderDash();}
