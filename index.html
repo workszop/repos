@@ -1153,13 +1153,20 @@ async function refreshRepoData(){
   if(s.ght)h['Authorization']='token '+s.ght;
   const owner=activeRepo.html_url.replace('https://github.com/','').split('/')[0];
   try{
-    const res=await fetch(`https://api.github.com/repos/${owner}/${activeRepo.name}`,{headers:h});
-    if(!res.ok)throw new Error('GitHub '+res.status);
-    const d=await res.json();
+    // Refresh metadata AND the file list — a newly-added index.html must update hasPreview().
+    const [metaRes,filesRes]=await Promise.all([
+      fetch(`https://api.github.com/repos/${owner}/${activeRepo.name}`,{headers:h}),
+      fetch(`https://api.github.com/repos/${owner}/${activeRepo.name}/contents`,{headers:h})
+    ]);
+    if(!metaRes.ok)throw new Error('GitHub '+metaRes.status);
+    const d=await metaRes.json();
+    let files=null;
+    if(filesRes.ok){const items=await filesRes.json();if(Array.isArray(items))files=items.map(i=>i.name);}
     const idx=repos.findIndex(r=>r.name===d.name);
     if(idx!==-1){
       repos[idx]={...repos[idx],language:d.language||'Other',pushed_at:d.pushed_at,size:d.size,
-        stargazers_count:d.stargazers_count,forks_count:d.forks_count,description:d.description};
+        stargazers_count:d.stargazers_count,forks_count:d.forks_count,description:d.description,
+        ...(files?{files}:{})};
       activeRepo=repos[idx];
       saveState();
       showDetail(activeRepo);
