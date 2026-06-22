@@ -526,6 +526,7 @@ async function loadRepos(){
       name:d.name,html_url:d.html_url,language:d.language||'Other',
       pushed_at:d.pushed_at,size:d.size,stargazers_count:d.stargazers_count,
       forks_count:d.forks_count,description:d.description,
+      has_pages:d.has_pages,
       files:by[d.name]?.files||[],
       preview_url:`https://${u}.github.io/${d.name}`,
       category:savedRC[d.name]||by[d.name]?.category||'other',
@@ -896,7 +897,9 @@ function bulkMoveSelected(){
 }
 
 function hasPreview(r){
-  return !!(r.preview_url&&(r.language==='HTML'||r.language==='JavaScript'||(r.files||[]).includes('index.html')));
+  // Trust GitHub's has_pages flag — covers repos whose site is served from /docs or a
+  // branch (e.g. data/), where index.html isn't in the repo root and language may be null.
+  return !!(r.preview_url&&(r.has_pages||r.language==='HTML'||r.language==='JavaScript'||(r.files||[]).includes('index.html')));
 }
 
 /* ── Category ops ── */
@@ -1166,6 +1169,7 @@ async function refreshRepoData(){
     if(idx!==-1){
       repos[idx]={...repos[idx],language:d.language||'Other',pushed_at:d.pushed_at,size:d.size,
         stargazers_count:d.stargazers_count,forks_count:d.forks_count,description:d.description,
+        has_pages:d.has_pages,
         ...(files?{files}:{})};
       activeRepo=repos[idx];
       saveState();
