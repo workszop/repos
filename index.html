@@ -71,6 +71,8 @@ input.fi::placeholder{color:var(--mu)}
 
 /* ── Category box ── */
 .cbox{background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;transition:border-color .15s,box-shadow .15s,opacity .15s}
+/* An expanded box takes the full row so a long category doesn't leave the other grid column blank */
+.cbox.expanded{grid-column:1/-1}
 .cbox.dragging-box{opacity:.45}
 /* Insert-before/after indicators for box reordering */
 .cbox.drop-left{box-shadow:inset 4px 0 0 var(--ac),0 0 0 2px color-mix(in srgb,var(--ac) 20%,transparent);border-color:color-mix(in srgb,var(--ac) 40%,var(--bd))}
@@ -256,7 +258,11 @@ input.fi::placeholder{color:var(--mu)}
 /* Save toast */
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:9px 18px;font-size:13px;color:var(--mu);display:flex;align-items:center;gap:8px;box-shadow:var(--sh);transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;z-index:500}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
-#toast svg{stroke:var(--sage);fill:none;width:14px;height:14px;stroke-width:2.5}
+#toast svg{fill:none;width:14px;height:14px;stroke-width:2.5}
+#toast .tok{stroke:var(--sage)}
+#toast .terr{stroke:var(--coral);display:none}
+#toast.err .tok{display:none}
+#toast.err .terr{display:block}
 
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -443,8 +449,9 @@ input.fi::placeholder{color:var(--mu)}
 </div>
 
 <div id="toast">
-  <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-  State saved
+  <svg class="tok" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+  <svg class="terr" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="toastmsg">State saved</span>
 </div>
 
 <script>
@@ -482,11 +489,13 @@ function saveState(){
   showToast();
 }
 function saveCats(){ lsSet('rv_cats', cats); }
-function showToast(){
+function showToast(msg,isErr){
   const t=document.getElementById('toast');
+  document.getElementById('toastmsg').textContent=msg||'State saved';
+  t.classList.toggle('err',!!isErr);
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>t.classList.remove('show'),1800);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),isErr?4000:1800);
 }
 
 /* ── Init ── */
@@ -507,7 +516,15 @@ function init(){
   const s=lsGet('rv_s',{});
   if(s.ght) document.getElementById('sght').value=s.ght;
   if(s.clk) document.getElementById('sclk').value=s.clk;
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){
+      const sp=document.getElementById('sp');
+      if(sp.classList.contains('open')) sp.classList.remove('open');
+    }
+  });
   renderDash();
+  // First visit: no saved repos yet — fetch live data instead of leaving the seed demo repos up
+  if(!savedRepos||savedRepos.length===0) loadRepos();
 }
 
 /* ── GitHub API ── */
@@ -534,7 +551,12 @@ async function loadRepos(){
     }));
     selectedRepos=new Set([...selectedRepos].filter(n=>repos.some(r=>r.name===n)));
     saveState(); renderDash();
-  }catch(e){alert('Error: '+e.message);}
+  }catch(e){
+    const msg=/404/.test(e.message)?`User "${u}" not found on GitHub`
+      :/403/.test(e.message)?'GitHub rate limit reached — add a token in Settings or try again later'
+      :'Could not load repos: '+e.message;
+    showToast(msg,true);
+  }
   finally{sp.classList.remove('on');}
 }
 
@@ -628,7 +650,8 @@ function renderDash(){
     const isBuiltin=['fun','edu','work','other'].includes(cat.id);
     const canDel=!isBuiltin&&cr.length===0;
     const box=document.createElement('div');
-    box.className='cbox'; box.dataset.col=cat.col; box.dataset.cid=cat.id;
+    box.className='cbox'+(expandedCats[cat.id]&&cr.length>CAT_LIMIT?' expanded':'');
+    box.dataset.col=cat.col; box.dataset.cid=cat.id;
     box.innerHTML=`
       <div class="bh">
         <div class="grip" title="Drag to reorder box">
@@ -934,7 +957,7 @@ function toggleStar(name){
 function toggleExpand(catId){ expandedCats[catId]=!expandedCats[catId]; renderDash(); }
 
 function delCat(id){
-  if(repos.some(r=>r.category===id)){alert('Move all repos out first.');return;}
+  if(repos.some(r=>r.category===id)){showToast('Move all repos out of this category first',true);return;}
   cats=cats.filter(c=>c.id!==id); saveCats(); renderDash();
 }
 
@@ -1133,7 +1156,9 @@ function fdate(iso){
   const d=new Date(iso),now=new Date(),df=Math.floor((now-d)/1e3);
   if(df<60) return 'just now'; if(df<3600) return Math.floor(df/60)+'m ago';
   if(df<86400) return Math.floor(df/3600)+'h ago'; if(df<604800) return Math.floor(df/86400)+'d ago';
-  return d.toLocaleDateString('en',{month:'short',day:'numeric'});
+  const opts={month:'short',day:'numeric'};
+  if(d.getFullYear()!==now.getFullYear()) opts.year='numeric';
+  return d.toLocaleDateString('en',opts);
 }
 function fsize(kb){return !kb?'0 KB':kb<1024?kb+' KB':(kb/1024).toFixed(1)+' MB';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -1144,10 +1169,11 @@ function bust(url){if(!url)return url;return url+(url.includes('?')?'&':'?')+'_c
 function setSearch(v){searchQ=v.toLowerCase().trim();renderDash();}
 function matchSearch(r){
   if(!searchQ)return true;
-  return r.name.toLowerCase().includes(searchQ)
-    ||(r.description||'').toLowerCase().includes(searchQ)
-    ||(r.ai_description||'').toLowerCase().includes(searchQ)
-    ||(r.language||'').toLowerCase().includes(searchQ);
+  // Name: substring match ("md2" finds md2web). Prose fields: word-start match only,
+  // so "ai" matches "AI notes" but not "armchair" buried in a description.
+  if(r.name.toLowerCase().includes(searchQ))return true;
+  const wb=new RegExp('\\b'+searchQ.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
+  return wb.test(r.description||'')||wb.test(r.ai_description||'')||wb.test(r.language||'');
 }
 
 async function refreshRepoData(){
