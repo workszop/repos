@@ -239,6 +239,15 @@ input.fi::placeholder{color:var(--mu)}
 .empty-state strong{font-size:15px;color:var(--tx)}
 .empty-state span{font-size:13px}
 
+/* Welcome (no account loaded yet) */
+.welcome{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:60vh;border:1px dashed var(--bd);border-radius:12px;color:var(--mu);text-align:center;padding:32px}
+.welcome .logo-mark{width:44px;height:44px;border-radius:11px;margin-bottom:8px}
+.welcome .logo-mark svg{width:20px;height:20px}
+.welcome strong{font-size:18px;color:var(--tx)}
+.welcome span{font-size:14px;max-width:340px}
+.welcome-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;justify-content:center}
+.welcome-row input.fi{width:220px}
+
 /* Settings */
 #sp{position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-end;justify-content:flex-end;padding:20px;pointer-events:none}
 #sp.open{pointer-events:all}
@@ -330,7 +339,7 @@ input.fi::placeholder{color:var(--mu)}
     </div>
     <div class="hdr-sep"></div>
     <div class="hdr-r">
-      <input type="text" class="fi" id="uname" value="workszop" placeholder="github username">
+      <input type="text" class="fi" id="uname" placeholder="github username">
       <button class="btn bp" onclick="loadRepos()">
         <svg width="14" height="14" viewBox="0 0 24 24" stroke-width="2.2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
         Load Repos
@@ -453,12 +462,6 @@ input.fi::placeholder{color:var(--mu)}
 </div>
 
 <script>
-const SEED=[
-  {name:"edulab",html_url:"https://github.com/workszop/edulab",language:"HTML",pushed_at:"2026-05-17T06:42:31Z",size:16232,stargazers_count:0,forks_count:0,description:null,files:["CNAME","README.md","index.html","klocki.png","left.png","logo.png","me.png","me3.png"],preview_url:"https://workszop.github.io/edulab",category:"edu",ai_description:"An educational lab site — personal learning platform with custom branding (logo, profile photos). Built as a single HTML page with supporting image assets. The CNAME suggests it's live on a custom domain. Likely a course or workshop landing page."},
-  {name:"notatki",html_url:"https://github.com/workszop/notatki",language:"HTML",pushed_at:"2026-05-17T05:17:16Z",size:18,stargazers_count:0,forks_count:0,description:"a few useful pieces about AI",files:["README.md","index.html","rag-benchmarking-presentation.html"],preview_url:"https://workszop.github.io/notatki",category:"edu",ai_description:"A minimal collection of AI notes and resources. Contains a main index and a standalone RAG benchmarking presentation — suggesting this is a personal knowledge repo covering retrieval-augmented generation techniques. Small footprint, pure HTML, no dependencies."},
-  {name:"off",html_url:"https://github.com/workszop/off",language:"JavaScript",pushed_at:"2026-05-14T06:21:39Z",size:52799,stargazers_count:0,forks_count:0,description:"offquarium",files:["README.md","assets/andy_idle.png","assets/andy_walk_right.png","assets/armchair.png","assets/jazz_idle.png","assets/olex_idle.png","assets/office_bg.jpg","css/style.css","index.html","js/game.js"],preview_url:"https://workszop.github.io/off",category:"fun",ai_description:"An interactive office simulation game — 'offquarium'. Characters (Andy, Jazz, Olex) wander an office environment complete with furniture sprites (armchair, desk cluster, coffee station, whiteboard, filing cabinet). Largest repo by size (53 MB of assets). A playful pixel-art style office life simulator."}
-];
-
 const COLORS=['coral','sky','sage','lav','amber','teal','rose','mint'];
 const DEF_CATS=[{id:'fun',name:'Fun',col:'coral'},{id:'edu',name:'Edu',col:'sky'},{id:'work',name:'Work',col:'sage'},{id:'other',name:'Other',col:'lav'}];
 
@@ -505,14 +508,9 @@ function init(){
   cats=lsGet('rv_cats',null)||JSON.parse(JSON.stringify(DEF_CATS));
   repoOrder=lsGet('rv_order',{});
   starred=new Set(lsGet('rv_starred',[]));
-  const savedRepos=lsGet('rv_repos',null);
   const savedRC=lsGet('rv_rc',{});
-  if(savedRepos&&savedRepos.length>0){
-    repos=savedRepos.map(r=>({...r,category:savedRC[r.name]||r.category}));
-    SEED.forEach(s=>{ if(!repos.find(r=>r.name===s.name)) repos.push({...s,category:savedRC[s.name]||s.category}); });
-  } else {
-    repos=SEED.map(r=>({...r,category:savedRC[r.name]||r.category}));
-  }
+  repos=(lsGet('rv_repos',null)||[]).map(r=>({...r,category:savedRC[r.name]||r.category}));
+  document.getElementById('uname').value=lsGet('rv_user','');
   const theme=localStorage.getItem('rv_theme')||'dark';
   document.documentElement.dataset.theme=theme; setThemeIcon(theme);
   const s=lsGet('rv_s',{});
@@ -522,11 +520,16 @@ function init(){
     if(e.key==='Escape'&&document.getElementById('sp').classList.contains('open')) toggleSettings();
   });
   renderDash();
-  // First visit: no saved repos yet — fetch live data instead of leaving the seed demo repos up
-  if(!savedRepos||savedRepos.length===0) loadRepos();
 }
 
 /* ── GitHub API ── */
+function loadFromWelcome(){
+  const v=document.getElementById('wuname')?.value.trim();
+  if(!v) return;
+  document.getElementById('uname').value=v;
+  loadRepos();
+}
+
 async function loadRepos(){
   const u=document.getElementById('uname').value.trim(); if(!u) return;
   const sp=document.getElementById('spin'); sp.classList.add('on');
@@ -546,6 +549,7 @@ async function loadRepos(){
       category:savedRC[d.name]||by[d.name]?.category||'other',
       ai_description:by[d.name]?.ai_description||null
     }));
+    lsSet('rv_user',u);
     saveState(); renderDash();
   }catch(e){
     const msg=/404/.test(e.message)?`User "${u}" not found on GitHub`
@@ -607,6 +611,20 @@ function moveCat(srcId, tgtId, before){
 /* ── Render ── */
 function renderDash(){
   const grid=document.getElementById('cgrid');
+  document.getElementById('bulkbar').style.display=repos.length?'':'none';
+  if(repos.length===0){
+    grid.innerHTML=`<div class="welcome">
+      <div class="logo-mark"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+      <strong>No account connected</strong>
+      <span>Enter a GitHub username to load and organize its repositories.</span>
+      <div class="welcome-row">
+        <input type="text" class="fi" id="wuname" placeholder="github username" onkeydown="if(event.key==='Enter')loadFromWelcome()">
+        <button class="btn bp" onclick="loadFromWelcome()">Load Repos</button>
+      </div>
+    </div>`;
+    setTimeout(()=>document.getElementById('wuname')?.focus(),40);
+    return;
+  }
   grid.innerHTML='';
   let visibleSections=0;
   const existingNames=new Set(repos.map(r=>r.name));
