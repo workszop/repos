@@ -61,8 +61,7 @@ input.fi::placeholder{color:var(--mu)}
 
 /* ── Views ── */
 #main{flex:1;overflow:hidden;position:relative}
-.view{position:absolute;inset:0;transition:opacity .22s ease,transform .22s ease}
-.view.hidden{opacity:0;pointer-events:none;transform:translateY(8px)}
+.view{position:absolute;inset:0;transition:opacity .22s ease,transform .22s ease;opacity:0;pointer-events:none;transform:translateY(8px)}
 .view.shown{opacity:1;pointer-events:all;transform:none}
 
 /* ── VIEW 1: Category Boxes ── */
@@ -213,7 +212,7 @@ input.fi::placeholder{color:var(--mu)}
 .pfw.vp-mobile .pif{position:relative;inset:auto;width:390px;max-width:100%;height:100%;flex-shrink:0;border:1px solid var(--bd);border-radius:10px}
 .pfb{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;color:var(--mu);text-align:center;padding:32px}
 .pfb.on{display:flex}
-.ftv{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:18px 20px;font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:2;color:var(--mu);max-height:55vh;overflow-y:auto;min-width:280px;text-align:left;width:100%;max-width:440px}
+.ftv{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:18px 20px;font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:1.7;color:var(--mu);max-height:55vh;overflow-y:auto;min-width:280px;text-align:left;width:100%;max-width:440px}
 
 /* Sidebar */
 .dsb{overflow-y:auto;background:var(--sf);display:flex;flex-direction:column}
@@ -300,9 +299,8 @@ input.fi::placeholder{color:var(--mu)}
   .logo{font-size:16px}
   .logo-mark{width:28px;height:28px}
   .hdr-r{grid-template-columns:1fr 44px;align-items:stretch}
-  .hdr-r .btn.bp{width:44px;padding:0;justify-content:center}
+  .hdr-r .btn.bp{width:44px;padding:0;justify-content:center;font-size:0;gap:0}
   .hdr-r .btn.bp svg{width:16px;height:16px}
-  .hdr-r .btn.bp{font-size:0;gap:0}
   #srch{grid-column:1/-1;max-width:none!important}
   .bh,.fav-bh{padding-right:12px;gap:8px}
   .bbd{grid-template-columns:1fr;padding:12px}
@@ -324,7 +322,7 @@ input.fi::placeholder{color:var(--mu)}
 <div id="app">
 
   <header id="hdr">
-    <div class="logo" onclick="goHome()" title="Home">
+    <div class="logo" onclick="showDash()" title="Home">
       <div class="logo-mark">
         <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
       </div>
@@ -354,7 +352,7 @@ input.fi::placeholder{color:var(--mu)}
       <div class="cat-grid" id="cgrid"></div>
     </div>
 
-    <div id="v2" class="view hidden">
+    <div id="v2" class="view">
       <div class="dl">
         <div class="pp">
           <div class="ptb">
@@ -378,7 +376,7 @@ input.fi::placeholder{color:var(--mu)}
           <div class="pfw vp-desktop" id="pfw">
             <iframe id="pif" class="pif" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" src="about:blank"></iframe>
             <div class="pfb" id="pfb">
-              <div class="ftv" id="ftv" style="line-height:1.7"></div>
+              <div class="ftv" id="ftv"></div>
             </div>
           </div>
         </div>
@@ -466,27 +464,31 @@ const DEF_CATS=[{id:'fun',name:'Fun',col:'coral'},{id:'edu',name:'Edu',col:'sky'
 
 const CAT_LIMIT=4;
 let repos=[], cats=[], activeRepo=null, addingNew=false, newCol='amber';
-let searchQ='';
+let searchQ='', searchRe=null;
 let repoOrder={};           // { catId: [name, ...] }  — order within each box
 let expandedCats={};        // { catId: true }
 let starred=new Set();      // repo names
 let selectedRepos=new Set(); // repo names selected for bulk actions
-let visibleRepoNames=[];     // repo names currently visible on dashboard
+let visibleRepoNames=new Set(); // repo names currently visible on dashboard
 let dragType=null;          // 'card' | 'box'
-let dragCardName=null;
 let dragBoxId=null;
 let toastTimer=null;
 
 /* ── Storage ── */
 const lsGet=(k,fb)=>{try{const v=localStorage.getItem(k);return v!=null?JSON.parse(v):fb}catch{return fb}};
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+const ghHeaders=()=>{const h={'Accept':'application/vnd.github.v3+json'},t=lsGet('rv_s',{}).ght;if(t)h['Authorization']='token '+t;return h};
+const repoOwner=r=>r.html_url.replace('https://github.com/','').split('/')[0];
+const langClass=r=>(r.language||'other').toLowerCase().replace(/\s/g,'');
+const catOptionsH=active=>cats.map(c=>`<option value="${c.id}"${c.id===active?' selected':''}>${esc(c.name)}</option>`).join('');
+const isCardControl=e=>e.target.closest('.select-btn,.star-btn,.csel,.act-btn');
 
-function saveState(){
+function saveState(silent){
   lsSet('rv_repos', repos);
   lsSet('rv_rc', Object.fromEntries(repos.map(r=>[r.name,r.category])));
   lsSet('rv_order', repoOrder);
   lsSet('rv_starred', [...starred]);
-  showToast();
+  if(!silent) showToast();
 }
 function saveCats(){ lsSet('rv_cats', cats); }
 function showToast(msg,isErr){
@@ -517,10 +519,7 @@ function init(){
   if(s.ght) document.getElementById('sght').value=s.ght;
   if(s.clk) document.getElementById('sclk').value=s.clk;
   document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){
-      const sp=document.getElementById('sp');
-      if(sp.classList.contains('open')) sp.classList.remove('open');
-    }
+    if(e.key==='Escape'&&document.getElementById('sp').classList.contains('open')) toggleSettings();
   });
   renderDash();
   // First visit: no saved repos yet — fetch live data instead of leaving the seed demo repos up
@@ -532,9 +531,7 @@ async function loadRepos(){
   const u=document.getElementById('uname').value.trim(); if(!u) return;
   const sp=document.getElementById('spin'); sp.classList.add('on');
   try{
-    const s=lsGet('rv_s',{}),h={'Accept':'application/vnd.github.v3+json'};
-    if(s.ght) h['Authorization']='token '+s.ght;
-    const res=await fetch(`https://api.github.com/users/${u}/repos?sort=pushed&per_page=100`,{headers:h});
+    const res=await fetch(`https://api.github.com/users/${u}/repos?sort=pushed&per_page=100`,{headers:ghHeaders()});
     if(!res.ok) throw new Error('GitHub API '+res.status);
     const data=await res.json();
     const savedRC=lsGet('rv_rc',{}),by={};
@@ -549,7 +546,6 @@ async function loadRepos(){
       category:savedRC[d.name]||by[d.name]?.category||'other',
       ai_description:by[d.name]?.ai_description||null
     }));
-    selectedRepos=new Set([...selectedRepos].filter(n=>repos.some(r=>r.name===n)));
     saveState(); renderDash();
   }catch(e){
     const msg=/404/.test(e.message)?`User "${u}" not found on GitHub`
@@ -574,24 +570,26 @@ function ensureOrder(catId){
   if(!repoOrder[catId]) repoOrder[catId]=getOrderedRepos(catId).map(r=>r.name);
 }
 
-/* Move a repo to catId, inserting before/after tgtName (null = append) */
-function moveRepo(srcName, tgtCatId, tgtName, insertBefore){
-  const r=repos.find(x=>x.name===srcName); if(!r||srcName===tgtName) return;
+/* Core move: mutate repos/repoOrder only — no save, render, or sidebar sync */
+function placeRepo(srcName, tgtCatId, tgtName, insertBefore){
+  const r=repos.find(x=>x.name===srcName); if(!r) return;
   const oldCat=r.category;
   r.category=tgtCatId;
   ensureOrder(oldCat); ensureOrder(tgtCatId);
-  // Remove from old order
   repoOrder[oldCat]=repoOrder[oldCat].filter(n=>n!==srcName);
-  // Prepare target order (may now include repos from both sides if same cat)
-  if(oldCat!==tgtCatId){
-    repoOrder[tgtCatId]=repoOrder[tgtCatId].filter(n=>repos.find(x=>x.name===n));
-  }
+  repoOrder[tgtCatId]=repoOrder[tgtCatId].filter(n=>n!==srcName&&repos.some(x=>x.name===n));
   const arr=repoOrder[tgtCatId];
   if(!tgtName){ arr.push(srcName); }
   else{
     const ti=arr.indexOf(tgtName);
     ti===-1 ? arr.push(srcName) : arr.splice(insertBefore?ti:ti+1,0,srcName);
   }
+}
+
+/* Move a repo to catId, inserting before/after tgtName (null = append) */
+function moveRepo(srcName, tgtCatId, tgtName, insertBefore){
+  const r=repos.find(x=>x.name===srcName); if(!r||srcName===tgtName) return;
+  placeRepo(srcName, tgtCatId, tgtName, insertBefore);
   saveState(); renderDash();
   if(activeRepo?.name===srcName) fillSbCat(tgtCatId);
 }
@@ -613,13 +611,13 @@ function renderDash(){
   let visibleSections=0;
   const existingNames=new Set(repos.map(r=>r.name));
   selectedRepos=new Set([...selectedRepos].filter(n=>existingNames.has(n)));
-  visibleRepoNames=[];
+  visibleRepoNames=new Set();
 
   /* ── Favourites box (auto, read-only) ── */
   const favRepos=repos.filter(r=>starred.has(r.name)&&matchSearch(r));
   if(favRepos.length>0){
     visibleSections++;
-    favRepos.forEach(r=>visibleRepoNames.push(r.name));
+    favRepos.forEach(r=>visibleRepoNames.add(r.name));
     const fbox=document.createElement('div');
     fbox.className='fav-box';
     fbox.innerHTML=`
@@ -632,13 +630,7 @@ function renderDash(){
         ${favRepos.map(r=>cardH(r,true)).join('')}
       </div>`;
     grid.appendChild(fbox);
-    fbox.querySelectorAll('.rcard').forEach(card=>{
-      card.addEventListener('click',e=>{
-        if(e.target.closest('.star-btn')||e.target.closest('.select-btn')||e.target.closest('.csel')||e.target.closest('.act-btn')) return;
-        const r=repos.find(x=>x.name===card.dataset.r);
-        if(r) showDetail(r);
-      });
-    });
+    // click wiring comes from the generic .rcard pass below — fav cards are in the DOM by then
   }
 
   cats.forEach(cat=>{
@@ -646,7 +638,7 @@ function renderDash(){
     if(searchQ&&cr.length===0)return;
     visibleSections++;
     const shownRepos=searchQ||expandedCats[cat.id]?cr:cr.slice(0,CAT_LIMIT);
-    shownRepos.forEach(r=>visibleRepoNames.push(r.name));
+    shownRepos.forEach(r=>visibleRepoNames.add(r.name));
     const isBuiltin=['fun','edu','work','other'].includes(cat.id);
     const canDel=!isBuiltin&&cr.length===0;
     const box=document.createElement('div');
@@ -745,7 +737,6 @@ function renderDash(){
     empty.innerHTML=`<strong>No matching repositories</strong><span>Try a different repo name, language, or description.</span>`;
     grid.appendChild(empty);
   }
-  visibleRepoNames=[...new Set(visibleRepoNames)];
   renderBulkBar();
 
   /* ── Add category tile ── */
@@ -780,15 +771,15 @@ function renderDash(){
   document.querySelectorAll('.rcard').forEach(card=>{
     if(card.getAttribute('draggable')!=='false'){
       card.addEventListener('dragstart',e=>{
-        if(e.target.closest('.select-btn')||e.target.closest('.star-btn')||e.target.closest('.csel')||e.target.closest('.act-btn')){e.preventDefault();return;}
+        if(isCardControl(e)){e.preventDefault();return;}
         e.stopPropagation();
-        dragType='card'; dragCardName=card.dataset.r;
+        dragType='card';
         e.dataTransfer.effectAllowed='move';
         e.dataTransfer.setData('rn',card.dataset.r);
         requestAnimationFrame(()=>card.classList.add('dragging-card'));
       });
       card.addEventListener('dragend',()=>{
-        dragType=null; dragCardName=null;
+        dragType=null;
         card.classList.remove('dragging-card');
         document.querySelectorAll('.rcard').forEach(c=>c.classList.remove('drop-before','drop-after'));
       });
@@ -819,7 +810,7 @@ function renderDash(){
       });
     }
     card.addEventListener('click',e=>{
-      if(e.target.closest('.csel')||e.target.closest('.star-btn')||e.target.closest('.select-btn')||e.target.closest('.act-btn')) return;
+      if(isCardControl(e)) return;
       const r=repos.find(x=>x.name===card.dataset.r);
       if(r) showDetail(r);
     });
@@ -832,7 +823,7 @@ const OPEN_SVG=`<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0
 const EYE_SVG=`<svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
 function cardH(r, inFavs=false){
-  const lc=(r.language||'other').toLowerCase().replace(/\s/g,'');
+  const lc=langClass(r);
   const desc=r.ai_description||r.description||'';
   const dc=r.ai_description?'rd ai':'rd';
   const isStarred=starred.has(r.name);
@@ -854,9 +845,7 @@ function cardH(r, inFavs=false){
       <span class="rdate">${fdate(r.pushed_at)}</span>
       ${inFavs
         ?`<span class="cat-badge">${esc(catName)}</span>`
-        :`<select class="csel" onchange="setcat('${esc(r.name)}',this.value)" onclick="event.stopPropagation()">
-          ${cats.map(c=>`<option value="${c.id}"${c.id===r.category?' selected':''}>${esc(c.name)}</option>`).join('')}
-        </select>`}
+        :`<select class="csel" onchange="setcat('${esc(r.name)}',this.value)" onclick="event.stopPropagation()">${catOptionsH(r.category)}</select>`}
     </div>
     <div class="card-actions">
       <a class="act-btn ${preview?'':'disabled'}" href="${esc(r.preview_url||'#')}" target="_blank" onclick="event.stopPropagation()" title="${preview?'Open preview':'No GitHub Pages preview'}">${EYE_SVG}Preview</a>
@@ -867,18 +856,14 @@ function cardH(r, inFavs=false){
 
 function renderBulkBar(){
   const bar=document.getElementById('bulkbar');
-  if(!bar) return;
   const count=selectedRepos.size;
-  const selectedLabel=count===1?'1 selected':`${count} selected`;
   const selectIcon='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg>';
   const moveIcon='<svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
   const clearIcon='<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
   bar.innerHTML=`
-    <div class="bulk-title">Bulk organize <span class="bulk-count">${selectedLabel}</span></div>
-    <button class="bulk-btn" onclick="selectVisibleRepos()" ${visibleRepoNames.length?'':'disabled'}>${selectIcon}Select visible</button>
-    <select class="bulk-select" id="bulkcat" ${count?'':'disabled'}>
-      ${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
-    </select>
+    <div class="bulk-title">Bulk organize <span class="bulk-count">${count} selected</span></div>
+    <button class="bulk-btn" onclick="selectVisibleRepos()" ${visibleRepoNames.size?'':'disabled'}>${selectIcon}Select visible</button>
+    <select class="bulk-select" id="bulkcat" ${count?'':'disabled'}>${catOptionsH()}</select>
     <button class="bulk-btn" onclick="bulkMoveSelected()" ${count?'':'disabled'}>${moveIcon}Move</button>
     <button class="bulk-btn" onclick="clearSelection()" ${count?'':'disabled'}>${clearIcon}Clear</button>`;
 }
@@ -905,13 +890,7 @@ function bulkMoveSelected(){
   names.forEach(name=>{
     const r=repos.find(x=>x.name===name);
     if(!r||r.category===catId) return;
-    const oldCat=r.category;
-    ensureOrder(oldCat);
-    ensureOrder(catId);
-    r.category=catId;
-    repoOrder[oldCat]=repoOrder[oldCat].filter(n=>n!==name);
-    repoOrder[catId]=repoOrder[catId].filter(n=>n!==name&&repos.some(x=>x.name===n));
-    repoOrder[catId].push(name);
+    placeRepo(name, catId, null, false);
   });
   selectedRepos.clear();
   saveState();
@@ -929,7 +908,6 @@ function hasPreview(r){
 function setcat(name,catId){
   const r=repos.find(x=>x.name===name); if(!r||r.category===catId) return;
   moveRepo(name,catId,null,false);
-  if(activeRepo?.name===name) fillSbCat(catId);
 }
 function catFromSb(v){if(activeRepo) setcat(activeRepo.name,v);}
 
@@ -950,7 +928,7 @@ function startRename(id){
 
 function toggleStar(name){
   if(starred.has(name)) starred.delete(name); else starred.add(name);
-  lsSet('rv_starred',[...starred]);
+  saveState(true);
   renderDash();
 }
 
@@ -976,13 +954,17 @@ function confirmNew(){
 function showDetail(r){
   activeRepo=r;
   document.getElementById('sbn').textContent=r.name;
-  const lc=(r.language||'other').toLowerCase().replace(/\s/g,'');
-  const lb=document.getElementById('sblng'); lb.textContent=r.language||'?'; lb.className='lb l-'+lc;
+  const lb=document.getElementById('sblng'); lb.textContent=r.language||'?'; lb.className='lb l-'+langClass(r);
   document.getElementById('sbdt').textContent='pushed '+fdate(r.pushed_at);
   const sbstar=document.getElementById('sbstar');
   sbstar.className='star-btn'+(starred.has(r.name)?' on':'');
   sbstar.title=starred.has(r.name)?'Unstar':'Star';
-  sbstar.onclick=()=>{toggleStar(r.name);showDetail(r);};
+  // Update the button in place — a full showDetail would needlessly reload the preview iframe
+  sbstar.onclick=()=>{
+    toggleStar(r.name);
+    sbstar.classList.toggle('on',starred.has(r.name));
+    sbstar.title=starred.has(r.name)?'Unstar':'Star';
+  };
   fillSbCat(r.category);
   document.getElementById('ghlink').href=r.html_url;
   renderAiBox(r);
@@ -993,9 +975,9 @@ function showDetail(r){
   document.getElementById('sbfl').innerHTML=(r.files||[]).map(f=>`<div class="fi">${esc(f)}</div>`).join('')||'<div class="fi" style="font-style:italic;color:var(--mu)">No file data</div>';
   const hasPv=hasPreview(r);
   const ifr=document.getElementById('pif'),fb=document.getElementById('pfb');
-  document.getElementById('addr').textContent=r.preview_url||r.html_url;
+  document.getElementById('addr').textContent=hasPv?r.preview_url:r.html_url;
   if(hasPv){ifr.style.display='block';fb.classList.remove('on');ifr.src=bust(r.preview_url);}
-  else{ifr.style.display='none';fb.classList.add('on');document.getElementById('addr').textContent=r.html_url;showFileFallback(r);}
+  else{ifr.style.display='none';fb.classList.add('on');showFileFallback(r);}
   sv('v1','v2'); setVp('desktop');
 }
 
@@ -1026,14 +1008,12 @@ async function generateAiDesc(){
   ai.innerHTML='<em style="color:var(--mu);font-size:13px">Generating…</em><span class="spn" style="margin-left:8px;display:inline-block"></span>';
 
   try{
-    const s=lsGet('rv_s',{}),gh={'Accept':'application/vnd.github.v3+json'};
-    if(s.ght) gh['Authorization']='token '+s.ght;
-    const owner=r.html_url.replace('https://github.com/','').split('/')[0];
+    const owner=repoOwner(r);
 
     // 1. Ensure we have a file list — fetch it if missing
     let files=r.files||[];
     if(files.length===0){
-      const listRes=await fetch(`https://api.github.com/repos/${owner}/${r.name}/contents`,{headers:gh});
+      const listRes=await fetch(`https://api.github.com/repos/${owner}/${r.name}/contents`,{headers:ghHeaders()});
       if(listRes.ok){
         const items=await listRes.json();
         files=items.map(i=>i.name);
@@ -1079,7 +1059,7 @@ Write a 2–3 sentence description of what this repository does. Be specific and
     const data=await resp.json();
     r.ai_description=data.content[0].text.trim();
     saveState();
-    showDetail(r);
+    renderAiBox(r); // only the AI box changed — a full showDetail would reload the preview iframe
   }catch(e){
     ai.innerHTML=`<em style="color:var(--coral);font-size:13px">Error: ${esc(e.message)}</em>
       <button onclick="generateAiDesc()" class="btn bp" style="margin-top:10px;padding:6px 14px;font-size:13px;display:inline-flex">↺ Retry</button>`;
@@ -1087,7 +1067,7 @@ Write a 2–3 sentence description of what this repository does. Be specific and
 }
 
 function fillSbCat(active){
-  document.getElementById('sbcat').innerHTML=cats.map(c=>`<option value="${c.id}"${c.id===active?' selected':''}>${esc(c.name)}</option>`).join('');
+  document.getElementById('sbcat').innerHTML=catOptionsH(active);
 }
 
 function fileIcon(name){
@@ -1104,10 +1084,7 @@ async function showFileFallback(r){
   }
   ftv.innerHTML='<div style="color:var(--mu);font-size:13px">Loading…</div>';
   try{
-    const s=lsGet('rv_s',{}),h={'Accept':'application/vnd.github.v3+json'};
-    if(s.ght) h['Authorization']='token '+s.ght;
-    const owner=r.html_url.replace('https://github.com/','').split('/')[0];
-    const res=await fetch(`https://api.github.com/repos/${owner}/${r.name}/contents`,{headers:h});
+    const res=await fetch(`https://api.github.com/repos/${repoOwner(r)}/${r.name}/contents`,{headers:ghHeaders()});
     if(!res.ok) throw new Error('GitHub '+res.status);
     const items=await res.json();
     r.files=items.map(i=>i.name);
@@ -1124,13 +1101,12 @@ async function showFileFallback(r){
 }
 
 function showDash(){sv('v2','v1');document.getElementById('pif').src='about:blank';}
-function goHome(){showDash();}
 function sv(h,s){
-  document.getElementById(h).classList.remove('shown');document.getElementById(h).classList.add('hidden');
-  document.getElementById(s).classList.remove('hidden');document.getElementById(s).classList.add('shown');
+  document.getElementById(h).classList.remove('shown');
+  document.getElementById(s).classList.add('shown');
 }
 function setVp(m){ document.getElementById('pfw').className='pfw vp-'+m; document.querySelectorAll('.vpb').forEach(b=>b.classList.toggle('act',b.dataset.vp===m)); }
-function reloadPv(){const f=document.getElementById('pif');if(activeRepo&&hasPreview(activeRepo)){f.src=bust(activeRepo.preview_url);}else{f.src=f.src;}}
+function reloadPv(){if(activeRepo&&hasPreview(activeRepo))document.getElementById('pif').src=bust(activeRepo.preview_url);}
 
 /* ── Theme ── */
 function toggleTheme(){
@@ -1166,21 +1142,23 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function bust(url){if(!url)return url;return url+(url.includes('?')?'&':'?')+'_cb='+Date.now();}
 
 
-function setSearch(v){searchQ=v.toLowerCase().trim();renderDash();}
+function setSearch(v){
+  searchQ=v.toLowerCase().trim();
+  searchRe=searchQ?new RegExp('\\b'+searchQ.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'):null;
+  renderDash();
+}
 function matchSearch(r){
   if(!searchQ)return true;
   // Name: substring match ("md2" finds md2web). Prose fields: word-start match only,
   // so "ai" matches "AI notes" but not "armchair" buried in a description.
   if(r.name.toLowerCase().includes(searchQ))return true;
-  const wb=new RegExp('\\b'+searchQ.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
-  return wb.test(r.description||'')||wb.test(r.ai_description||'')||wb.test(r.language||'');
+  return searchRe.test(r.description||'')||searchRe.test(r.ai_description||'')||searchRe.test(r.language||'');
 }
 
 async function refreshRepoData(){
   if(!activeRepo){reloadPv();return;}
-  const s=lsGet('rv_s',{}),h={'Accept':'application/vnd.github.v3+json'};
-  if(s.ght)h['Authorization']='token '+s.ght;
-  const owner=activeRepo.html_url.replace('https://github.com/','').split('/')[0];
+  const h=ghHeaders();
+  const owner=repoOwner(activeRepo);
   try{
     // Refresh metadata AND the file list — a newly-added index.html must update hasPreview().
     const [metaRes,filesRes]=await Promise.all([
@@ -1199,7 +1177,8 @@ async function refreshRepoData(){
         ...(files?{files}:{})};
       activeRepo=repos[idx];
       saveState();
-      showDetail(activeRepo);
+      showDetail(activeRepo); // already reloads the preview — no extra reloadPv
+      return;
     }
   }catch(e){console.error('Refresh failed:',e);}
   reloadPv();
