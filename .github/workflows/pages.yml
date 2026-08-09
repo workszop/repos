@@ -12,7 +12,9 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # Never cancel an in-flight Pages deploy: a cancelled deployment can deactivate the
+  # one currently live and drop the whole site to 404. Queue instead — deploys are ~20s.
+  cancel-in-progress: false
 
 jobs:
   deploy:
