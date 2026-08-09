@@ -492,6 +492,8 @@ const CAT_LIMIT=4;
 let repos=[], cats=[], activeRepo=null, addingNew=false, newCol='amber';
 let searchQ='', searchRe=null;
 let viewMode='cats';         // 'cats' = category boxes | 'recent' = flat list by pushed_at
+let lastFetchAt=0;           // ms epoch of the last successful GitHub fetch
+const REFRESH_MIN_MS=60000;  // don't refetch more often than this (GitHub allows 60 req/h unauthenticated)
 let repoOrder={};           // { catId: [name, ...] }  — order within each box
 let expandedCats={};        // { catId: true }
 let starred=new Set();      // repo names
@@ -536,6 +538,7 @@ function init(){
   repos=(lsGet('rv_repos',null)||[]).map(r=>({...r,category:savedRC[r.name]||r.category}));
   document.getElementById('uname').value=lsGet('rv_user','');
   viewMode=lsGet('rv_view','cats')==='recent'?'recent':'cats';
+  lastFetchAt=lsGet('rv_fetched',0)||0;
   syncViewModeBtns();
   const theme=localStorage.getItem('rv_theme')||'dark';
   document.documentElement.dataset.theme=theme; setThemeIcon(theme);
@@ -546,6 +549,7 @@ function init(){
     if(e.key==='Escape'&&document.getElementById('sp').classList.contains('open')) toggleSettings();
   });
   renderDash();
+  if(viewMode==='recent') refreshForRecent();
 }
 
 /* ── GitHub API ── */
@@ -556,11 +560,13 @@ function loadFromWelcome(){
   loadRepos();
 }
 
-async function loadRepos(){
+async function loadRepos(silent){
   const u=document.getElementById('uname').value.trim(); if(!u) return;
   const sp=document.getElementById('spin'); sp.classList.add('on');
   try{
-    const res=await fetch(`https://api.github.com/users/${u}/repos?sort=pushed&per_page=100`,{headers:ghHeaders()});
+    /* cache:'no-store' — GitHub sends Cache-Control: max-age=60, so the default
+       fetch cache would replay a stored response and pushed_at could not change */
+    const res=await fetch(`https://api.github.com/users/${u}/repos?sort=pushed&per_page=100`,{headers:ghHeaders(),cache:'no-store'});
     if(!res.ok) throw new Error('GitHub API '+res.status);
     const data=await res.json();
     const savedRC=lsGet('rv_rc',{}),by={};
@@ -576,7 +582,8 @@ async function loadRepos(){
       ai_description:by[d.name]?.ai_description||null
     }));
     lsSet('rv_user',u);
-    saveState(); renderDash();
+    lastFetchAt=Date.now(); lsSet('rv_fetched',lastFetchAt);
+    saveState(silent); renderDash();
   }catch(e){
     const msg=/404/.test(e.message)?`User "${u}" not found on GitHub`
       :/403/.test(e.message)?'GitHub rate limit reached — add a token in Settings or try again later'
@@ -1200,11 +1207,21 @@ function setThemeIcon(t){
 function syncViewModeBtns(){
   document.querySelectorAll('.vmb').forEach(b=>b.classList.toggle('act',b.dataset.vm===viewMode));
 }
+/* The Recent view is only useful with current push times, and the app otherwise
+   never refetches on its own — so entering it pulls fresh data in the background.
+   Throttled so flipping between the two views can't burn the API rate limit. */
+function refreshForRecent(){
+  if(!repos.length) return;
+  if(!document.getElementById('uname').value.trim()) return;
+  if(Date.now()-lastFetchAt<REFRESH_MIN_MS) return;
+  loadRepos(true);
+}
 function setViewMode(m){
   if(m!=='recent') m='cats';
   if(m===viewMode) return;
   viewMode=m; lsSet('rv_view',m);
   syncViewModeBtns(); renderDash();
+  if(m==='recent') refreshForRecent();
 }
 
 /* ── Settings ── */
