@@ -549,7 +549,7 @@ function init(){
     if(e.key==='Escape'&&document.getElementById('sp').classList.contains('open')) toggleSettings();
   });
   renderDash();
-  if(viewMode==='recent') refreshForRecent();
+  refreshRepos();
 }
 
 /* ── GitHub API ── */
@@ -1207,10 +1207,10 @@ function setThemeIcon(t){
 function syncViewModeBtns(){
   document.querySelectorAll('.vmb').forEach(b=>b.classList.toggle('act',b.dataset.vm===viewMode));
 }
-/* The Recent view is only useful with current push times, and the app otherwise
-   never refetches on its own — so entering it pulls fresh data in the background.
-   Throttled so flipping between the two views can't burn the API rate limit. */
-function refreshForRecent(){
+/* Every card shows a push time, so stale data is wrong in both views, not just in
+   Recent — this runs on startup and on entering Recent (which a long-open tab can
+   reach without a reload). Throttled so it can't burn the API rate limit. */
+function refreshRepos(){
   if(!repos.length) return;
   if(!document.getElementById('uname').value.trim()) return;
   if(Date.now()-lastFetchAt<REFRESH_MIN_MS) return;
@@ -1221,7 +1221,7 @@ function setViewMode(m){
   if(m===viewMode) return;
   viewMode=m; lsSet('rv_view',m);
   syncViewModeBtns(); renderDash();
-  if(m==='recent') refreshForRecent();
+  if(m==='recent') refreshRepos();
 }
 
 /* ── Settings ── */
@@ -1267,8 +1267,8 @@ async function refreshRepoData(){
   try{
     // Refresh metadata AND the file list — a newly-added index.html must update hasPreview().
     const [metaRes,filesRes]=await Promise.all([
-      fetch(`https://api.github.com/repos/${owner}/${activeRepo.name}`,{headers:h}),
-      fetch(`https://api.github.com/repos/${owner}/${activeRepo.name}/contents`,{headers:h})
+      fetch(`https://api.github.com/repos/${owner}/${activeRepo.name}`,{headers:h,cache:'no-store'}),
+      fetch(`https://api.github.com/repos/${owner}/${activeRepo.name}/contents`,{headers:h,cache:'no-store'})
     ]);
     if(!metaRes.ok)throw new Error('GitHub '+metaRes.status);
     const d=await metaRes.json();
