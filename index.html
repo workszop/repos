@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<!-- data-build is rewritten to the deployed commit SHA by .github/workflows/pages.yml;
+     it stays "dev" when the file is opened locally or from file:// -->
+<html lang="en" data-theme="dark" data-build="dev">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -272,6 +274,10 @@ input.fi::placeholder{color:var(--mu)}
 .sin{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:7px;color:var(--tx);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:8px 11px;outline:none;transition:border-color .15s}
 .sin:focus{border-color:var(--ac)}
 .snote{font-size:12px;color:var(--mu);margin-top:5px;line-height:1.45}
+/* Which build is actually loaded — answers "am I looking at cached HTML?" at a glance */
+.sbuild{margin-top:18px;padding-top:14px;border-top:1px solid var(--bd);font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mu);text-align:center}
+.sbuild a{color:var(--ac);text-decoration:none}
+.sbuild a:hover{text-decoration:underline}
 .bfull{width:100%;justify-content:center;padding:10px}
 
 /* Save toast */
@@ -475,6 +481,7 @@ input.fi::placeholder{color:var(--mu)}
     </div>
     <button class="btn bp bfull" onclick="saveSettings()">Save</button>
     <div style="margin-top:8px"><button class="btn bg bfull" onclick="toggleSettings()">Close</button></div>
+    <div class="sbuild">Build <span id="sbid">dev</span> · loaded <span id="sbdate">—</span></div>
   </div>
 </div>
 
@@ -536,7 +543,12 @@ function init(){
   starred=new Set(lsGet('rv_starred',[]));
   const savedRC=lsGet('rv_rc',{});
   repos=(lsGet('rv_repos',null)||[]).map(r=>({...r,category:savedRC[r.name]||r.category}));
-  document.getElementById('uname').value=lsGet('rv_user','');
+  /* Repos saved before rv_user was persisted leave this field empty, which silently
+     disabled both Load Repos and the auto-refresh. The owner is recoverable from the
+     stored repo URLs, so recover it rather than stranding the user. */
+  let user=lsGet('rv_user','');
+  if(!user&&repos.length){ user=repoOwner(repos[0])||''; if(user) lsSet('rv_user',user); }
+  document.getElementById('uname').value=user;
   viewMode=lsGet('rv_view','cats')==='recent'?'recent':'cats';
   lastFetchAt=lsGet('rv_fetched',0)||0;
   syncViewModeBtns();
@@ -548,8 +560,20 @@ function init(){
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'&&document.getElementById('sp').classList.contains('open')) toggleSettings();
   });
+  showBuildInfo();
   renderDash();
   refreshRepos();
+}
+
+/* The deployed SHA plus when this HTML was served — a stale cached page shows an old
+   pair here, which is otherwise invisible from inside the app. */
+function showBuildInfo(){
+  const b=document.documentElement.dataset.build||'dev';
+  const el=document.getElementById('sbid');
+  el.textContent=b;
+  if(b!=='dev') el.outerHTML=`<a id="sbid" href="https://github.com/workszop/repos/commit/${esc(b)}" target="_blank" title="Open this commit on GitHub">${esc(b)}</a>`;
+  const d=new Date(document.lastModified);
+  document.getElementById('sbdate').textContent=isNaN(d)?'—':d.toLocaleString();
 }
 
 /* ── GitHub API ── */
@@ -561,7 +585,12 @@ function loadFromWelcome(){
 }
 
 async function loadRepos(silent){
-  const u=document.getElementById('uname').value.trim(); if(!u) return;
+  const u=document.getElementById('uname').value.trim();
+  if(!u){
+    /* Never let the button do nothing at all — that reads as a broken app */
+    if(!silent){ showToast('Enter a GitHub username first',true); document.getElementById('uname').focus(); }
+    return;
+  }
   const sp=document.getElementById('spin'); sp.classList.add('on');
   try{
     /* cache:'no-store' — GitHub sends Cache-Control: max-age=60, so the default

@@ -23,6 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Stamp the build marker with the deployed commit
+        run: |
+          set -euo pipefail
+          sha="${GITHUB_SHA::7}"
+          sed -i "s/data-build=\"dev\"/data-build=\"$sha\"/" index.html
+          grep -q "data-build=\"$sha\"" index.html || { echo "build marker not stamped"; exit 1; }
+          echo "Stamped build marker: $sha"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
