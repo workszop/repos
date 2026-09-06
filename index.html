@@ -153,8 +153,6 @@ input.fi::placeholder{color:var(--ink-3)}
 .star-btn svg{display:block;width:13px;height:13px;stroke-width:2;stroke:currentColor;fill:none}
 .star-btn.on svg{fill:var(--yellow)}
 
-/* Category badge (used in Favourites cards) */
-.cat-badge{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:var(--r-pill);background:var(--paper-2);color:var(--ink-2);flex-shrink:0;white-space:nowrap}
 
 /* ─── Favourites box ─── */
 .fav-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;grid-column:1/-1;box-shadow:var(--shadow-sm)}
@@ -170,14 +168,12 @@ input.fi::placeholder{color:var(--ink-3)}
 .vmb.act{background:var(--yellow);color:var(--yellow-ink)}
 .vmb:hover:not(.act){color:var(--ink)}
 .vmb svg{stroke:currentColor;fill:none;display:block;width:14px;height:14px;stroke-width:1.9}
-/* Language chips — solid colour, white text (dark on yellow) */
-.lb{flex-shrink:0;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:var(--r-pill);align-self:flex-start;white-space:nowrap}
-.l-html{color:var(--red-ink);background:var(--red-soft)}
-.l-javascript{color:var(--yellow-ink);background:var(--yellow-soft)}
-.l-typescript{color:var(--blue-ink);background:var(--blue-soft)}
-.l-python{color:var(--blue-ink);background:var(--blue-600)}
-.l-go{color:var(--green-ink);background:var(--green-soft)}
-.l-other{color:var(--ink-2);background:var(--paper-2)}
+/* Language chip — neutral; colour is reserved for the category */
+.lb{flex-shrink:0;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:var(--r-pill);align-self:flex-start;white-space:nowrap;color:var(--ink-2);background:var(--paper-2)}
+/* Category chip — solid category colour, white text (dark on yellow) */
+.cat-chip{flex-shrink:0;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:var(--r-pill);white-space:nowrap;background:var(--cc,var(--ink-3));color:var(--cc-ink,var(--paper))}
+.cc-coral{--cc:var(--coral)}.cc-sky{--cc:var(--sky)}.cc-sage{--cc:var(--sage)}.cc-lav{--cc:var(--lav)}
+.cc-amber{--cc:var(--amber);--cc-ink:var(--yellow-ink)}.cc-teal{--cc:var(--teal)}.cc-rose{--cc:var(--rose)}.cc-mint{--cc:var(--mint)}
 .rd{font-size:12.5px;color:var(--ink-2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:9px}
 .rd.ai::before{content:'✦ ';color:var(--blue);font-size:10px}
 .rb{display:flex;align-items:center;justify-content:space-between;gap:6px}
@@ -537,7 +533,6 @@ const lsGet=(k,fb)=>{try{const v=localStorage.getItem(k);return v!=null?JSON.par
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const ghHeaders=()=>{const h={'Accept':'application/vnd.github.v3+json'},t=lsGet('rv_s',{}).ght;if(t)h['Authorization']='token '+t;return h};
 const repoOwner=r=>r.html_url.replace('https://github.com/','').split('/')[0];
-const langClass=r=>(r.language||'other').toLowerCase().replace(/\s/g,'');
 const catOptionsH=active=>cats.map(c=>`<option value="${c.id}"${c.id===active?' selected':''}>${esc(c.name)}</option>`).join('');
 const isCardControl=e=>e.target.closest('.select-btn,.star-btn,.csel,.act-btn');
 
@@ -956,13 +951,13 @@ const OPEN_SVG=`<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0
 const EYE_SVG=`<svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
 function cardH(r, inFavs=false){
-  const lc=langClass(r);
   const desc=r.ai_description||r.description||'';
   const dc=r.ai_description?'rd ai':'rd';
   const isStarred=starred.has(r.name);
   const isSelected=selectedRepos.has(r.name);
   const preview=hasPreview(r);
-  const catName=cats.find(c=>c.id===r.category)?.name||'';
+  const cat=cats.find(c=>c.id===r.category);
+  const catChip=cat?`<span class="cat-chip cc-${esc(cat.col)}">${esc(cat.name)}</span>`:'';
   return `<div class="rcard${isSelected?' selected':''}" draggable="${inFavs?'false':'true'}" data-r="${esc(r.name)}">
     <div class="rt">
       <button class="select-btn${isSelected?' on':''}" onclick="toggleSelected('${esc(r.name)}');event.stopPropagation()" title="${isSelected?'Deselect':'Select'}">${CHECK_SVG}</button>
@@ -970,14 +965,15 @@ function cardH(r, inFavs=false){
       <button class="star-btn${isStarred?' on':''}" onclick="toggleStar('${esc(r.name)}');event.stopPropagation()" title="${isStarred?'Unstar':'Star'}">${STAR_SVG}</button>
     </div>
     <div class="rmeta">
-      <span class="lb l-${lc}">${esc(r.language||'?')}</span>
+      ${catChip}
+      <span class="lb">${esc(r.language||'?')}</span>
       <span class="preview-pill ${preview?'on':'off'}">${preview?'Preview':'No preview'}</span>
     </div>
     ${desc?`<div class="${dc}" title="${esc(desc)}">${esc(desc)}</div>`:''}
     <div class="rb">
       <span class="rdate">${fdate(r.pushed_at)}</span>
       ${inFavs
-        ?`<span class="cat-badge">${esc(catName)}</span>`
+        ?''
         :`<select class="csel" onchange="setcat('${esc(r.name)}',this.value)" onclick="event.stopPropagation()">${catOptionsH(r.category)}</select>`}
     </div>
     <div class="card-actions">
@@ -1087,7 +1083,7 @@ function confirmNew(){
 function showDetail(r){
   activeRepo=r;
   document.getElementById('sbn').textContent=r.name;
-  const lb=document.getElementById('sblng'); lb.textContent=r.language||'?'; lb.className='lb l-'+langClass(r);
+  const lb=document.getElementById('sblng'); lb.textContent=r.language||'?'; lb.className='lb';
   document.getElementById('sbdt').textContent='pushed '+fdate(r.pushed_at);
   const sbstar=document.getElementById('sbstar');
   sbstar.className='star-btn'+(starred.has(r.name)?' on':'');
