@@ -45,9 +45,11 @@
   --tx:var(--ink);--mu:var(--ink-2);
   --ac:var(--blue);--pu:var(--play-grape);
   --sh:var(--shadow-md);
-  /* category colours → play palette */
+  /* category colours → play palette; teal/mint are mixes so all eight stay distinct
+     (they used to be blue-600/green-600, identical to the sky/sage chips) */
   --coral:var(--play-coral);--sky:var(--play-sky);--sage:var(--play-grass);--lav:var(--play-grape);
-  --amber:var(--play-sun);--teal:var(--blue-600);--rose:var(--play-berry);--mint:var(--green-600);
+  --amber:var(--play-sun);--teal:color-mix(in srgb,var(--blue-600) 50%,var(--green-600));--rose:var(--play-berry);
+  --mint:color-mix(in srgb,var(--play-coral) 45%,var(--play-sun)); /* orange; key kept for saved categories */
 }
 
 html,body{height:100%;background:var(--paper);color:var(--ink);font-family:var(--font-sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
@@ -126,6 +128,7 @@ input.fi::placeholder{color:var(--ink-3)}
 .cp{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s,border-color .12s}
 .cp:hover{transform:scale(1.25)}
 .cp.sel{border-color:var(--ink)}
+.cp.used{display:none}
 
 /* ─── Repo card ─── */
 .rcard{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-md);padding:0;overflow:hidden;cursor:grab;transition:border-color .15s,box-shadow .15s;position:relative}
@@ -148,9 +151,6 @@ input.fi::placeholder{color:var(--ink-3)}
 .select-btn.on{background:var(--blue);border-color:var(--blue);color:var(--blue-ink)}
 .select-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:3}
 .rmeta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
-.preview-pill{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:var(--r-pill);white-space:nowrap}
-.preview-pill.on{color:var(--green-ink);background:var(--green-soft)}
-.preview-pill.off{color:var(--ink-2);background:var(--paper-2)}
 
 /* ─── Star button ─── */
 .star-btn{background:transparent;border:none;color:var(--ink-3);padding:2px;cursor:pointer;display:grid;place-items:center;flex-shrink:0;transition:color .15s,transform .15s;border-radius:var(--r-xs);margin-top:1px}
@@ -180,7 +180,7 @@ input.fi::placeholder{color:var(--ink-3)}
 .cat-chip{flex-shrink:0;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:var(--r-pill);white-space:nowrap;background:var(--cc,var(--ink-3));color:var(--cc-ink,var(--paper))}
 /* small white chip text needs the AA shades: coral / sky / sage chips use the -soft fills */
 .cc-coral{--cc:var(--red-soft)}.cc-sky{--cc:var(--blue-soft)}.cc-sage{--cc:var(--green-soft)}.cc-lav{--cc:var(--lav)}
-.cc-amber{--cc:var(--amber);--cc-ink:var(--yellow-ink)}.cc-teal{--cc:var(--teal)}.cc-rose{--cc:var(--rose)}.cc-mint{--cc:var(--mint)}
+.cc-amber{--cc:var(--amber);--cc-ink:var(--yellow-ink)}.cc-teal{--cc:var(--teal)}.cc-rose{--cc:var(--rose)}.cc-mint{--cc:var(--mint);--cc-ink:var(--yellow-ink)}
 .rd{font-size:12.5px;color:var(--ink-2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:9px}
 .rd.ai::before{content:'✦ ';color:var(--blue-600);font-size:10px}
 .rb{display:flex;align-items:center;justify-content:space-between;gap:6px}
@@ -546,6 +546,17 @@ const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const ghHeaders=()=>{const h={'Accept':'application/vnd.github.v3+json'},t=lsGet('rv_s',{}).ght;if(t)h['Authorization']='token '+t;return h};
 const repoOwner=r=>r.html_url.replace('https://github.com/','').split('/')[0];
 const catOptionsH=active=>cats.map(c=>`<option value="${c.id}"${c.id===active?' selected':''}>${esc(c.name)}</option>`).join('');
+const usedCols=()=>new Set(cats.map(c=>c.col));
+const freeCol=()=>COLORS.find(c=>!usedCols().has(c)); // undefined once all eight are taken
+/* Each category keeps its own tag colour: later duplicates move to a free colour */
+function dedupeCatCols(){
+  const seen=new Set(); let changed=false;
+  cats.forEach(c=>{
+    if(seen.has(c.col)||!COLORS.includes(c.col)){const f=COLORS.find(x=>!seen.has(x)&&!cats.some(o=>o!==c&&o.col===x));if(f){c.col=f;changed=true;}}
+    seen.add(c.col);
+  });
+  return changed;
+}
 const isCardControl=e=>e.target.closest('.select-btn,.star-btn,.csel,.act-btn');
 
 function saveState(silent){
@@ -568,6 +579,7 @@ function showToast(msg,isErr){
 /* ── Init ── */
 function init(){
   cats=lsGet('rv_cats',null)||JSON.parse(JSON.stringify(DEF_CATS));
+  if(dedupeCatCols()) saveCats();
   repoOrder=lsGet('rv_order',{});
   starred=new Set(lsGet('rv_starred',[]));
   const savedRC=lsGet('rv_rc',{});
@@ -885,7 +897,7 @@ function renderDash(){
     slot.innerHTML=`
       <div class="np-lbl">New Category Name</div>
       <input class="np-in" id="npin" type="text" placeholder="e.g. Archive, Side projects, Learning…">
-      <div class="cpstrip">${COLORS.map(c=>`<div class="cp${c===newCol?' sel':''}" style="background:var(--${c})" onclick="pickCol('${c}')" title="${c}"></div>`).join('')}</div>
+      <div class="cpstrip">${COLORS.map(c=>`<div class="cp${c===newCol?' sel':''}${c!==newCol&&usedCols().has(c)&&freeCol()?' used':''}" style="background:var(--${c})" onclick="pickCol('${c}')" title="${c}"></div>`).join('')}</div>
       <div class="np-btns">
         <button class="btn bg" style="padding:6px 13px;font-size:13px" onclick="cancelNew()">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Cancel
@@ -902,7 +914,7 @@ function renderDash(){
   } else {
     slot.className='add-tile';
     slot.innerHTML=`<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Add Category</span>`;
-    slot.onclick=()=>{addingNew=true;renderDash();};
+    slot.onclick=()=>{addingNew=true;newCol=freeCol()||newCol;renderDash();};
     grid.appendChild(slot);
   }
   }
@@ -979,7 +991,6 @@ function cardH(r, inFavs=false){
     <div class="rmeta">
       ${catChip}
       <span class="lb">${esc(r.language||'?')}</span>
-      <span class="preview-pill ${preview?'on':'off'}">${preview?'Preview':'No preview'}</span>
     </div>
     ${desc?`<div class="${dc}" title="${esc(desc)}">${esc(desc)}</div>`:''}
     <div class="rb">
@@ -1087,7 +1098,7 @@ function confirmNew(){
   const name=inp?.value?.trim(); if(!name) return;
   const id='c'+Date.now();
   cats.push({id,name,col:newCol});
-  newCol=COLORS[(COLORS.indexOf(newCol)+1)%COLORS.length];
+  newCol=freeCol()||COLORS[(COLORS.indexOf(newCol)+1)%COLORS.length];
   addingNew=false; saveCats(); renderDash();
 }
 
