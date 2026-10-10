@@ -45,10 +45,10 @@
   --tx:var(--ink);--mu:var(--ink-2);
   --ac:var(--blue);--pu:var(--play-grape);
   --sh:var(--shadow-md);
-  /* category colours → play palette; teal/mint are mixes so all eight stay distinct
+  /* category colours → play palette; teal/mint are remapped so all eight stay distinct
      (they used to be blue-600/green-600, identical to the sky/sage chips) */
   --coral:var(--play-coral);--sky:var(--play-sky);--sage:var(--play-grass);--lav:var(--play-grape);
-  --amber:var(--play-sun);--teal:color-mix(in srgb,var(--blue-600) 50%,var(--green-600));--rose:var(--play-berry);
+  --amber:var(--play-sun);--teal:var(--ink); /* ink; key kept for saved categories */--rose:var(--play-berry);
   --mint:color-mix(in srgb,var(--play-coral) 45%,var(--play-sun)); /* orange; key kept for saved categories */
 }
 
@@ -144,8 +144,9 @@ input.fi::placeholder{color:var(--ink-3)}
 /* Drop-before/after: full contour on the neighbour, not a one-sided line */
 .rcard.drop-before,.rcard.drop-after{border-color:var(--blue);box-shadow:0 0 0 2px color-mix(in srgb,var(--blue) 25%,transparent)}
 
-.rt{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;padding:10px 14px;background:var(--paper-2);border-bottom:1px solid var(--line)}
-.rn{font-family:var(--font-mono);font-size:13.5px;font-weight:400;color:var(--ink);word-break:break-all;line-height:1.4;flex:1;min-width:0}
+/* Name strip carries the category colour (cc-* class on the card sets --cc / --cc-ink) */
+.rt{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;padding:10px 14px;background:var(--cc,var(--paper-2));color:var(--cc-ink,var(--paper));border-bottom:1px solid var(--line)}
+.rn{font-family:var(--font-mono);font-size:13.5px;font-weight:400;color:inherit;word-break:break-all;line-height:1.4;flex:1;min-width:0}
 .select-btn{width:17px;height:17px;border:1px solid var(--line-strong);background:var(--surface);border-radius:var(--r-xs);color:transparent;display:grid;place-items:center;cursor:pointer;flex-shrink:0;margin-top:1px;transition:all .15s}
 .select-btn:hover{border-color:var(--ink)}
 .select-btn.on{background:var(--blue);border-color:var(--blue);color:var(--blue-ink)}
@@ -158,6 +159,8 @@ input.fi::placeholder{color:var(--ink-3)}
 .star-btn.on{color:var(--ink)}
 .star-btn svg{display:block;width:13px;height:13px;stroke-width:2;stroke:currentColor;fill:none}
 .star-btn.on svg{fill:var(--yellow)}
+.rt .star-btn,.rt .star-btn:hover,.rt .star-btn.on{color:inherit}
+.rt .select-btn.on{background:var(--surface);border-color:var(--ink);color:var(--ink)}
 
 
 /* ─── Favourites box ─── */
@@ -178,9 +181,9 @@ input.fi::placeholder{color:var(--ink-3)}
 .lb{flex-shrink:0;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:var(--r-pill);align-self:flex-start;white-space:nowrap;color:var(--ink-2);background:var(--paper-2)}
 /* Category chip — solid category colour, white text (dark on yellow) */
 .cat-chip{flex-shrink:0;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:var(--r-pill);white-space:nowrap;background:var(--cc,var(--ink-3));color:var(--cc-ink,var(--paper))}
-/* small white chip text needs the AA shades: coral / sky / sage chips use the -soft fills */
+/* small white chip text needs the AA shades: coral / sky / sage chips use the -soft fills, rose a darkened berry */
 .cc-coral{--cc:var(--red-soft)}.cc-sky{--cc:var(--blue-soft)}.cc-sage{--cc:var(--green-soft)}.cc-lav{--cc:var(--lav)}
-.cc-amber{--cc:var(--amber);--cc-ink:var(--yellow-ink)}.cc-teal{--cc:var(--teal)}.cc-rose{--cc:var(--rose)}.cc-mint{--cc:var(--mint);--cc-ink:var(--yellow-ink)}
+.cc-amber{--cc:var(--amber);--cc-ink:var(--yellow-ink)}.cc-teal{--cc:var(--teal)}.cc-rose{--cc:color-mix(in srgb,var(--rose) 88%,var(--ink))}.cc-mint{--cc:var(--mint);--cc-ink:var(--yellow-ink)}
 .rd{font-size:12.5px;color:var(--ink-2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:9px}
 .rd.ai::before{content:'✦ ';color:var(--blue-600);font-size:10px}
 .rb{display:flex;align-items:center;justify-content:space-between;gap:6px}
@@ -982,7 +985,7 @@ function cardH(r, inFavs=false){
   const preview=hasPreview(r);
   const cat=cats.find(c=>c.id===r.category);
   const catChip=cat?`<span class="cat-chip cc-${esc(cat.col)}">${esc(cat.name)}</span>`:'';
-  return `<div class="rcard${isSelected?' selected':''}" draggable="${inFavs?'false':'true'}" data-r="${esc(r.name)}">
+  return `<div class="rcard${cat?' cc-'+esc(cat.col):''}${isSelected?' selected':''}" draggable="${inFavs?'false':'true'}" data-r="${esc(r.name)}">
     <div class="rt">
       <button class="select-btn${isSelected?' on':''}" onclick="toggleSelected('${esc(r.name)}');event.stopPropagation()" title="${isSelected?'Deselect':'Select'}">${CHECK_SVG}</button>
       <div class="rn">${esc(r.name)}</div>
