@@ -526,7 +526,7 @@ input.fi::placeholder{color:var(--ink-3)}
 
 <script>
 const COLORS=['coral','sky','sage','lav','amber','teal','rose','mint'];
-const DEF_CATS=[{id:'fun',name:'Fun',col:'coral'},{id:'edu',name:'Edu',col:'sky'},{id:'work',name:'Work',col:'sage'},{id:'other',name:'Other',col:'lav'}];
+const DEF_CATS=[{id:'fun',name:'Fun',col:'mint'},{id:'edu',name:'Edu',col:'rose'},{id:'work',name:'Work',col:'sage'},{id:'other',name:'Other',col:'lav'}];
 
 const CAT_LIMIT=4;
 let repos=[], cats=[], activeRepo=null, addingNew=false, newCol='amber';
@@ -560,6 +560,18 @@ function dedupeCatCols(){
   });
   return changed;
 }
+/* One-time remap for saved categories: Fun → orange ('mint'), Edu off blue (it read as Tools).
+   A category already holding the wanted colour moves to a free one. */
+function remapCatColsV2(){
+  const take=(id,prefs)=>{
+    const c=cats.find(x=>x.id===id); if(!c) return;
+    const col=prefs.find(p=>!cats.some(o=>o!==c&&o.col===p))||prefs[0];
+    c.col=col;
+    cats.filter(o=>o!==c&&o.col===col).forEach(o=>{o.col=COLORS.find(x=>!cats.some(k=>k.col===x))||o.col;});
+  };
+  take('fun',['mint']);
+  take('edu',['rose','coral','amber','lav','sage']);
+}
 const isCardControl=e=>e.target.closest('.select-btn,.star-btn,.csel,.act-btn');
 
 function saveState(silent){
@@ -582,6 +594,7 @@ function showToast(msg,isErr){
 /* ── Init ── */
 function init(){
   cats=lsGet('rv_cats',null)||JSON.parse(JSON.stringify(DEF_CATS));
+  if(lsGet('rv_colv',1)<2){ remapCatColsV2(); lsSet('rv_colv',2); saveCats(); }
   if(dedupeCatCols()) saveCats();
   repoOrder=lsGet('rv_order',{});
   starred=new Set(lsGet('rv_starred',[]));
