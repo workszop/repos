@@ -1218,14 +1218,18 @@ Write a 2–3 sentence description of what this repository does. Be specific and
         'anthropic-dangerous-direct-browser-access':'true'
       },
       body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',
-        max_tokens:200,
+        model:'claude-haiku-5-5',
+        max_tokens:1024, // Haiku 5.5 thinks by default; thinking counts toward this cap
+        output_config:{effort:'low'},
         messages:[{role:'user',content:prompt}]
       })
     });
     if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||'API '+resp.status);}
     const data=await resp.json();
-    r.ai_description=data.content[0].text.trim();
+    // Response may start with thinking blocks — read the text block by type
+    const textBlock=data.content.find(b=>b.type==='text');
+    if(!textBlock) throw new Error(data.stop_reason==='refusal'?'Request declined':'No text in reply ('+data.stop_reason+')');
+    r.ai_description=textBlock.text.trim();
     saveState();
     renderAiBox(r); // only the AI box changed — a full showDetail would reload the preview iframe
   }catch(e){
