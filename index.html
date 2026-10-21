@@ -513,6 +513,15 @@ input.fi::placeholder{color:var(--ink-3)}
       <div class="snote">For AI descriptions. Sent only to api.anthropic.com.</div>
     </div>
     <button class="btn bp bfull" onclick="saveSettings()">Save</button>
+    <div class="sfd" style="margin-top:14px">
+      <label class="slbl">Backup</label>
+      <div style="display:flex;gap:8px">
+        <button class="btn bg bfull" onclick="exportState()" title="Download categories, order and favourites as JSON">Export</button>
+        <button class="btn bg bfull" onclick="document.getElementById('simp').click()" title="Restore a previously exported JSON file">Import</button>
+        <input type="file" id="simp" accept="application/json,.json" style="display:none" onchange="importState(this.files[0]);this.value=''">
+      </div>
+      <div class="snote">Categories, layout and favourites for every account. Keys are not included.</div>
+    </div>
     <div style="margin-top:8px"><button class="btn bg bfull" onclick="toggleSettings()">Close</button></div>
     <div class="sbuild">Build <span id="sbid">dev</span> · loaded <span id="sbdate">—</span></div>
   </div>
@@ -546,6 +555,35 @@ let toastTimer=null;
 /* ── Storage ── */
 const lsGet=(k,fb)=>{try{const v=localStorage.getItem(k);return v!=null?JSON.parse(v):fb}catch{return fb}};
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+/* Per-user state. Everything that describes one account's repos lives under
+   `<key>@<user>`, so loading another account never touches this one's layout.
+   Keys that existed before this scheme carry no suffix; they are copied over
+   once, and only if they belong to the account being opened. */
+let curUser='';
+const USER_KEYS=['rv_repos','rv_rc','rv_order','rv_starred','rv_cats','rv_fetched','rv_colv'];
+const uk=k=>curUser?`${k}@${curUser.toLowerCase()}`:k;
+const uGet=(k,fb)=>lsGet(uk(k),fb);
+const uSet=(k,v)=>lsSet(uk(k),v);
+function migrateLegacyState(){
+  if(!curUser||localStorage.getItem(uk('rv_rc'))!=null) return;
+  const legacy=lsGet('rv_repos',null);
+  if(!legacy||!legacy.length||repoOwner(legacy[0]).toLowerCase()!==curUser.toLowerCase()) return;
+  USER_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)localStorage.setItem(uk(k),v);});
+}
+/* Swap the in-memory state to one account's saved data (empty defaults for a new one) */
+function loadUserState(user){
+  curUser=(user||'').trim();
+  migrateLegacyState();
+  cats=uGet('rv_cats',null)||JSON.parse(JSON.stringify(DEF_CATS));
+  if(uGet('rv_colv',1)<2){ remapCatColsV2(); uSet('rv_colv',2); saveCats(); }
+  if(dedupeCatCols()) saveCats();
+  repoOrder=uGet('rv_order',{});
+  starred=new Set(uGet('rv_starred',[]));
+  const savedRC=uGet('rv_rc',{});
+  repos=(uGet('rv_repos',null)||[]).map(r=>({...r,category:savedRC[r.name]||r.category}));
+  lastFetchAt=uGet('rv_fetched',0)||0;
+  selectedRepos=new Set(); activeRepo=null;
+}
 const ghHeaders=()=>{const h={'Accept':'application/vnd.github.v3+json'},t=lsGet('rv_s',{}).ght;if(t)h['Authorization']='token '+t;return h};
 const repoOwner=r=>r.html_url.replace('https://github.com/','').split('/')[0];
 const catOptionsH=active=>cats.map(c=>`<option value="${c.id}"${c.id===active?' selected':''}>${esc(c.name)}</option>`).join('');
@@ -575,13 +613,14 @@ function remapCatColsV2(){
 const isCardControl=e=>e.target.closest('.select-btn,.star-btn,.csel,.act-btn');
 
 function saveState(silent){
-  lsSet('rv_repos', repos);
-  lsSet('rv_rc', Object.fromEntries(repos.map(r=>[r.name,r.category])));
-  lsSet('rv_order', repoOrder);
-  lsSet('rv_starred', [...starred]);
+  uSet('rv_repos', repos);
+  /* Merge, never replace: a repo missing from one fetch keeps its category */
+  uSet('rv_rc', {...uGet('rv_rc',{}), ...Object.fromEntries(repos.map(r=>[r.name,r.category]))});
+  uSet('rv_order', repoOrder);
+  uSet('rv_starred', [...starred]);
   if(!silent) showToast();
 }
-function saveCats(){ lsSet('rv_cats', cats); }
+function saveCats(){ uSet('rv_cats', cats); }
 function showToast(msg,isErr){
   const t=document.getElementById('toast');
   document.getElementById('toastmsg').textContent=msg||'State saved';
@@ -593,21 +632,14 @@ function showToast(msg,isErr){
 
 /* ── Init ── */
 function init(){
-  cats=lsGet('rv_cats',null)||JSON.parse(JSON.stringify(DEF_CATS));
-  if(lsGet('rv_colv',1)<2){ remapCatColsV2(); lsSet('rv_colv',2); saveCats(); }
-  if(dedupeCatCols()) saveCats();
-  repoOrder=lsGet('rv_order',{});
-  starred=new Set(lsGet('rv_starred',[]));
-  const savedRC=lsGet('rv_rc',{});
-  repos=(lsGet('rv_repos',null)||[]).map(r=>({...r,category:savedRC[r.name]||r.category}));
   /* Repos saved before rv_user was persisted leave this field empty, which silently
      disabled both Load Repos and the auto-refresh. The owner is recoverable from the
      stored repo URLs, so recover it rather than stranding the user. */
   let user=lsGet('rv_user','');
-  if(!user&&repos.length){ user=repoOwner(repos[0])||''; if(user) lsSet('rv_user',user); }
+  if(!user){ const legacy=lsGet('rv_repos',null)||[]; if(legacy.length){ user=repoOwner(legacy[0])||''; if(user) lsSet('rv_user',user); } }
+  loadUserState(user);
   document.getElementById('uname').value=user;
   viewMode=lsGet('rv_view','cats')==='recent'?'recent':'cats';
-  lastFetchAt=lsGet('rv_fetched',0)||0;
   syncViewModeBtns();
   const s=lsGet('rv_s',{});
   if(s.ght) document.getElementById('sght').value=s.ght;
@@ -653,7 +685,8 @@ async function loadRepos(silent){
     const res=await fetch(`https://api.github.com/users/${u}/repos?sort=pushed&per_page=100`,{headers:ghHeaders(),cache:'no-store'});
     if(!res.ok) throw new Error('GitHub API '+res.status);
     const data=await res.json();
-    const savedRC=lsGet('rv_rc',{}),by={};
+    if(u.toLowerCase()!==curUser.toLowerCase()) loadUserState(u);
+    const savedRC=uGet('rv_rc',{}),by={};
     repos.forEach(r=>by[r.name]=r);
     repos=data.map(d=>({
       name:d.name,html_url:d.html_url,language:d.language||'Other',
@@ -666,7 +699,7 @@ async function loadRepos(silent){
       ai_description:by[d.name]?.ai_description||null
     }));
     lsSet('rv_user',u);
-    lastFetchAt=Date.now(); lsSet('rv_fetched',lastFetchAt);
+    lastFetchAt=Date.now(); uSet('rv_fetched',lastFetchAt);
     saveState(silent); renderDash();
   }catch(e){
     const msg=/404/.test(e.message)?`User "${u}" not found on GitHub`
@@ -1306,6 +1339,32 @@ function toggleSettings(){document.getElementById('sp').classList.toggle('open')
 function saveSettings(){
   lsSet('rv_s',{ght:document.getElementById('sght').value.trim(),clk:document.getElementById('sclk').value.trim()});
   toggleSettings();
+}
+/* Backup = every rv_* key except the secrets, as one JSON document */
+function exportState(){
+  saveState(true);
+  const out={};
+  Object.keys(localStorage).filter(k=>k.startsWith('rv_')&&k!=='rv_s').forEach(k=>{out[k]=lsGet(k,null);});
+  const blob=new Blob([JSON.stringify({app:'repo-viewer',version:1,exported:new Date().toISOString(),data:out},null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`repo-viewer-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  showToast('Backup downloaded');
+}
+async function importState(file){
+  if(!file) return;
+  try{
+    const j=JSON.parse(await file.text());
+    const data=j&&j.app==='repo-viewer'&&j.data&&typeof j.data==='object'?j.data:null;
+    if(!data) throw new Error('not a Repo Viewer backup');
+    const keys=Object.keys(data).filter(k=>k.startsWith('rv_')&&k!=='rv_s');
+    if(!keys.length) throw new Error('backup is empty');
+    keys.forEach(k=>lsSet(k,data[k]));
+    showToast(`Restored ${keys.length} entries, reloading…`);
+    setTimeout(()=>location.reload(),600);
+  }catch(e){ showToast('Import failed: '+e.message,true); }
 }
 
 /* ── Helpers ── */
