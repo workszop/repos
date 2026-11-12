@@ -145,6 +145,13 @@ input.fi::placeholder{color:var(--ink-3)}
 .cp:hover{transform:scale(1.25)}
 .cp.sel{border-color:var(--ink)}
 .cp.used{display:none}
+/* Recolour strip under a category head: swatches are real buttons, 24px targets */
+.cpstrip.edit{align-items:center;flex-wrap:wrap;background:var(--surface)}
+.cpstrip.edit .cp{appearance:none;padding:0;width:24px;height:24px;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line-2)}
+.cpstrip.edit .cp.sel{box-shadow:0 0 0 2px var(--ink)}
+.cpstrip.edit .cp:focus-visible{box-shadow:var(--focus-ring)}
+.cp-lbl{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2);margin-right:4px}
+.bic.on{color:var(--ink);background:var(--paper-3)}
 
 /* ─── Repo card ─── */
 .rcard{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-md);padding:0;overflow:hidden;cursor:grab;transition:border-color .15s,box-shadow .15s;position:relative}
@@ -604,6 +611,9 @@ const ghHeaders=()=>{const h={'Accept':'application/vnd.github.v3+json'},t=lsGet
 const repoOwner=r=>r.html_url.replace('https://github.com/','').split('/')[0];
 const catOptionsH=active=>cats.map(c=>`<option value="${c.id}"${c.id===active?' selected':''}>${esc(c.name)}</option>`).join('');
 const usedCols=()=>new Set(cats.map(c=>c.col));
+/* Display names for the colour keys (keys are kept for saved categories; teal is ink, mint is orange) */
+const COL_NAMES={coral:'Red',sky:'Blue',sage:'Green',lav:'Purple',amber:'Yellow',teal:'Black',rose:'Pink',mint:'Orange'};
+let colEditCat=null;        // id of the category whose colour strip is open
 const freeCol=()=>COLORS.find(c=>!usedCols().has(c)); // undefined once all eight are taken
 /* Each category keeps its own tag colour: later duplicates move to a free colour */
 function dedupeCatCols(){
@@ -662,6 +672,7 @@ function init(){
   if(s.clk) document.getElementById('sclk').value=s.clk;
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'&&document.getElementById('sp').classList.contains('open')) toggleSettings();
+    else if(e.key==='Escape'&&colEditCat){ colEditCat=null; renderDash(); }
   });
   showBuildInfo();
   renderDash();
@@ -877,6 +888,9 @@ function renderDash(){
         <span class="bname" id="bn-${cat.id}">${esc(cat.name)}</span>
         <span class="bcnt">${cr.length}</span>
         <div class="bacts">
+          <button class="bic${colEditCat===cat.id?' on':''}" onclick="toggleColEdit('${cat.id}')" title="Change colour" aria-label="Change colour of ${esc(cat.name)}" aria-expanded="${colEditCat===cat.id}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.44-.18-.84-.44-1.13-.29-.29-.44-.65-.44-1.12a1.64 1.64 0 0 1 1.67-1.67h1.99c3.05 0 5.56-2.5 5.56-5.55C21.97 6.01 17.46 2 12 2z"/></svg>
+          </button>
           <button class="bic" onclick="startRename('${cat.id}')" title="Rename">
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
@@ -885,6 +899,11 @@ function renderDash(){
           </button>`:''}
         </div>
       </div>
+      ${colEditCat===cat.id?`<div class="cpstrip edit"><span class="cp-lbl">Colour</span>${COLORS.map(c=>{
+        const owner=cats.find(o=>o!==cat&&o.col===c);
+        const lbl=COL_NAMES[c]+(c===cat.col?' (current)':owner?' (swaps with '+owner.name+')':'');
+        return `<button class="cp${c===cat.col?' sel':''}" style="background:var(--${c})" onclick="setCatCol('${cat.id}','${c}')" title="${esc(lbl)}" aria-label="${esc(lbl)}" aria-pressed="${c===cat.col}"></button>`;
+      }).join('')}</div>`:''}
       <div class="bbd" id="bb-${cat.id}" data-cid="${cat.id}">
         ${cr.length===0?'<div class="bempty">Drop repos here</div>':''}
         ${shownRepos.map(r=>cardH(r,false)).join('')}
@@ -1164,6 +1183,25 @@ function delCat(id){
 }
 
 function pickCol(c){newCol=c;renderDash();}
+function toggleColEdit(id){
+  colEditCat=colEditCat===id?null:id;
+  renderDash();
+  if(colEditCat) document.querySelector(`.cbox[data-cid="${CSS.escape(id)}"] .cpstrip .cp.sel`)?.focus();
+}
+/* Colours stay unique per category (dedupeCatCols enforces it on load), so picking a
+   colour another category holds swaps the two instead of duplicating it. */
+function setCatCol(id,col){
+  const c=cats.find(x=>x.id===id); if(!c||!COLORS.includes(col)) return;
+  if(c.col!==col){
+    const other=cats.find(o=>o!==c&&o.col===col);
+    if(other) other.col=c.col;
+    c.col=col;
+    saveCats();
+    showToast(other?`Colours swapped with ${other.name}`:'Colour updated');
+  }
+  colEditCat=null;
+  renderDash();
+}
 function cancelNew(){addingNew=false;renderDash();}
 function confirmNew(){
   const inp=document.getElementById('npin');
