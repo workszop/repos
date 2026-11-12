@@ -5,10 +5,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=202611121327">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=202611121327">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=202611121327">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=202611121327">
+<meta name="theme-color" content="#FFD500">
 <title>Repo Viewer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+  @keyframes boot-reveal { to { visibility: visible; } }
+  html:not(.app-ready) body { visibility: hidden; animation: boot-reveal 0s 4s forwards; }
+  @media print { html:not(.app-ready) body { visibility: visible; animation: none; } }
+</style>
+<noscript><style>html:not(.app-ready) body { visibility: visible; animation: none; }</style></noscript>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -26,6 +37,7 @@
   --blue:#1E8FC2;--blue-600:#177AA8;--blue-soft:#177AA8;--blue-ink:#FFFFFF;
   --green:#00A651;--green-600:#078342;--green-soft:#078342;--green-ink:#FFFFFF;
   --red:#E5322D;--red-600:#C92823;--red-soft:#C92823;--red-ink:#FFFFFF;
+  --grape:#7A5AC2;--grape-soft:#7A5AC2;--grape-ink:#FFFFFF;
 
   --play-sun:#FFD500;--play-grass:#00A651;--play-berry:#C6478B;--play-grape:#7A5AC2;--play-sky:#1E8FC2;--play-coral:#E5322D;
 
@@ -33,9 +45,11 @@
   --primary:var(--yellow);--on-primary:#1C1917;
   --focus-ring:0 0 0 2px var(--paper), 0 0 0 5px var(--ink);
 
+  /* page gutter: content ~70% of the viewport on wide screens, never below 900px, 16-72px on phones/tablets */
+  --gutter:max(clamp(16px,4vw,72px),min(15vw,calc((100vw - 900px) / 2)));
   --r-xs:6px;--r-sm:10px;--r-md:14px;--r-lg:20px;--r-xl:28px;--r-pill:999px;
-  --shadow-sm:0 1px 2px rgba(33,30,26,.06),0 1px 1px rgba(33,30,26,.04);
-  --shadow-md:0 4px 16px rgba(33,30,26,.08),0 1px 3px rgba(33,30,26,.05);
+  --shadow-sm:0 1px 2px rgba(33,30,26,.10),0 2px 6px rgba(33,30,26,.06);
+  --shadow-md:0 6px 18px rgba(33,30,26,.12),0 1px 3px rgba(33,30,26,.08);
   --shadow-lg:0 16px 40px rgba(33,30,26,.12),0 3px 8px rgba(33,30,26,.06);
   --shadow-primary:0 8px 22px color-mix(in srgb,var(--yellow) 30%,transparent);
 
@@ -43,7 +57,7 @@
   --bg:var(--paper);--sf:var(--surface);--sf2:var(--paper-2);
   --bd:var(--line);--bd2:var(--line);
   --tx:var(--ink);--mu:var(--ink-2);
-  --ac:var(--blue);--pu:var(--play-grape);
+  --ac:var(--blue);--pu:var(--grape);
   --sh:var(--shadow-md);
   /* category colours → play palette; teal/mint are remapped so all eight stay distinct
      (they used to be blue-600/green-600, identical to the sky/sage chips) */
@@ -57,7 +71,7 @@ html,body{height:100%;background:var(--paper);color:var(--ink);font-family:var(-
 
 /* ─── Header (edulab top menu) ─── */
 #hdr{position:sticky;top:0;z-index:100;width:100%;background:var(--paper);border-bottom:1px solid var(--line-2);flex-shrink:0}
-.hdr-in{max-width:1160px;margin:0 auto;padding:8px 30px;display:flex;align-items:center;gap:12px}
+.hdr-in{padding:8px var(--gutter);display:flex;align-items:center;gap:12px}
 .logo{display:flex;align-items:center;gap:0;flex-shrink:0;cursor:pointer;text-decoration:none}
 .edu-logo{width:64px;height:64px;display:block;margin-right:-6px}
 .edu-wordmark{font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-.02em;color:var(--ink)}
@@ -86,8 +100,7 @@ input.fi::placeholder{color:var(--ink-3)}
 .view.shown{opacity:1;pointer-events:all;transform:none}
 
 /* ─── VIEW 1: Category Boxes ─── */
-#v1{overflow-y:auto;padding:34px 30px 70px}
-.shell{max-width:1100px;margin:0 auto}
+#v1{overflow-y:auto;padding:34px var(--gutter) 70px}
 .page-hd{text-align:left;padding:10px 0 32px;margin-bottom:28px;border-bottom:1px solid var(--line-2)}
 .app-title{font-family:var(--font-display);font-weight:800;font-size:clamp(2.3rem,5vw,3.3rem);letter-spacing:-.025em;line-height:1.05;color:var(--ink);margin:0 0 14px}
 .edu-lead{font-family:var(--font-sans);font-size:1.15rem;line-height:1.6;color:var(--ink-2);margin:0}
@@ -101,7 +114,7 @@ input.fi::placeholder{color:var(--ink-3)}
 .cbox.drop-left,.cbox.drop-right{border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 25%,transparent)}
 .cbox.dov{border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 25%,transparent)}
 
-.bh{display:flex;align-items:center;gap:10px;padding:14px 18px 14px 8px;background:var(--paper-2);border-bottom:1px solid var(--line);position:relative}
+.bh{display:flex;align-items:center;gap:10px;padding:10px 18px 10px 8px;background:var(--paper-2);border-bottom:1px solid var(--line);position:relative}
 
 .grip{color:var(--ink-3);padding:4px 6px 4px 8px;display:flex;align-items:center;flex-shrink:0;pointer-events:none}
 .grip svg{display:block;width:10px;height:14px}
@@ -109,7 +122,10 @@ input.fi::placeholder{color:var(--ink-3)}
 .bh:active{cursor:grabbing}
 .cbox.dragging-box .bh{cursor:grabbing}
 
-.bdot2{width:14px;height:14px;border-radius:50%;flex-shrink:0;background:var(--cc,var(--ink-3))}
+/* Icon badge on every box head: category colour on category boxes, ink + yellow icon otherwise */
+.badge{flex:none;width:34px;height:34px;border-radius:var(--r-sm);display:inline-grid;place-items:center;background:var(--cc,var(--ink));color:var(--cc-ink,var(--paper))}
+.badge svg{display:block;width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.badge.tone-ink{background:var(--ink);color:var(--yellow)}
 .bname{font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-.01em;color:var(--ink);flex:1;min-width:0}
 .bname-in{font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--ink);background:var(--surface);border:1px solid var(--ink);border-radius:var(--r-sm);padding:3px 9px;outline:3px solid transparent;flex:1;min-width:60px;max-width:200px}
 .bcnt{font-family:var(--font-mono);font-size:12px;color:var(--ink-2);background:var(--paper-3);border-radius:var(--r-pill);padding:2px 10px;flex-shrink:0}
@@ -165,11 +181,11 @@ input.fi::placeholder{color:var(--ink-3)}
 
 /* ─── Favourites box ─── */
 .fav-box{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-lg);overflow:hidden;grid-column:1/-1;box-shadow:var(--shadow-sm)}
-.fav-bh{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--paper-2);border-bottom:1px solid var(--line);position:relative}
+.fav-bh{display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--paper-2);border-bottom:1px solid var(--line);position:relative}
 .fav-name{font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-.01em;color:var(--ink);flex:1}
 /* ─── Recent view (flat, category-agnostic list) ─── */
 .recent-box{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-lg);overflow:hidden;grid-column:1/-1;box-shadow:var(--shadow-sm)}
-.recent-bh{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--paper-2);border-bottom:1px solid var(--line);position:relative}
+.recent-bh{display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--paper-2);border-bottom:1px solid var(--line);position:relative}
 .recent-name{font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-.01em;flex:1}
 /* View-mode toggle — borderless sand track, active option a solid yellow pill */
 .vmtgl{display:flex;gap:2px;background:var(--paper-2);border-radius:var(--r-pill);padding:3px;flex-shrink:0}
@@ -335,14 +351,14 @@ input.fi::placeholder{color:var(--ink-3)}
 .cbox[data-col="mint"]{--cc:var(--mint)}
 
 @media (max-width: 900px){
-  .hdr-in{align-items:flex-start;gap:10px;padding:8px 14px;flex-wrap:wrap}
+  .hdr-in{align-items:flex-start;gap:10px;flex-wrap:wrap}
   .hdr-sep{display:none}
   .hdr-in>.ib{margin-left:auto}   /* settings gear to the right edge of the first row */
   .hdr-r{order:2;flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px}
   input.fi{width:100%;min-width:0}
   #spin{grid-column:1/-1}
   .vmtgl{grid-column:1/-1;justify-content:center}
-  #v1{padding:20px 14px 50px}
+  #v1{padding:20px var(--gutter) 50px}
   .bulk-bar{flex-wrap:wrap}
   .bulk-title{flex-basis:100%;margin-right:0}
   .cat-grid{grid-template-columns:1fr;gap:14px}
@@ -354,7 +370,7 @@ input.fi::placeholder{color:var(--ink-3)}
 
 @media (max-width: 560px){
   #app{height:100dvh}
-  .hdr-in{padding:6px 10px}
+  .hdr-in{padding:6px var(--gutter)}
   .edu-logo{width:48px;height:48px}
   .edu-wordmark{font-size:19px}
   .hdr-r{grid-template-columns:1fr 44px;align-items:stretch}
@@ -650,6 +666,13 @@ function init(){
   showBuildInfo();
   renderDash();
   refreshRepos();
+  /* Reveal once the brand fonts are in (or after FONT_WAIT_MS), so the page never flashes fallback fonts */
+  const FONT_WAIT_MS=1500;
+  const BRAND_FONTS=['400 1em Outfit','700 1em Outfit','400 1em "IBM Plex Sans"','600 1em "IBM Plex Sans"','400 1em "Roboto Mono"'];
+  Promise.race([
+    Promise.all(BRAND_FONTS.map(f=>document.fonts.load(f).catch(()=>null))),
+    new Promise(r=>setTimeout(r,FONT_WAIT_MS)),
+  ]).then(()=>document.documentElement.classList.add('app-ready'));
 }
 
 /* The deployed SHA plus when this HTML was served — a stale cached page shows an old
@@ -772,7 +795,7 @@ function renderRecent(grid){
   box.className='recent-box';
   box.innerHTML=`
     <div class="recent-bh">
-      <svg viewBox="0 0 24 24" style="width:15px;height:15px;flex-shrink:0;stroke:var(--blue);fill:none;stroke-width:2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+      <span class="badge tone-ink" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg></span>
       <span class="recent-name">Recently updated</span>
       <span class="bcnt">${list.length}</span>
     </div>
@@ -819,7 +842,7 @@ function renderDash(){
     fbox.className='fav-box';
     fbox.innerHTML=`
       <div class="fav-bh">
-        <svg viewBox="0 0 24 24" style="width:15px;height:15px;flex-shrink:0;stroke:var(--ink);fill:var(--yellow);stroke-width:2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span class="badge tone-ink" aria-hidden="true"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
         <span class="fav-name">Favourites</span>
         <span class="bcnt">${favRepos.length}</span>
       </div>
@@ -850,7 +873,7 @@ function renderDash(){
             <circle cx="3" cy="13.5" r="1.2"/><circle cx="7" cy="13.5" r="1.2"/>
           </svg>
         </div>
-        <div class="bdot2"></div>
+        <span class="badge cc-${cat.col}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>
         <span class="bname" id="bn-${cat.id}">${esc(cat.name)}</span>
         <span class="bcnt">${cr.length}</span>
         <div class="bacts">
