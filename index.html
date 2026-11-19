@@ -372,10 +372,24 @@ input.fi::placeholder{color:var(--ink-3)}
   .pp{border-right:0;border-bottom:1px solid var(--line);min-height:48vh}
   .dsb{max-height:42vh}
   .sbb{padding:16px}
+
+  /* One scroller on touch screens: the page itself scrolls (not a fixed-height
+     shell with a scrolling #v1 inside it), so a swipe can't get "stuck" between
+     the outer document and the inner repo list. The header stays sticky. */
+  html,body{height:auto}
+  #app{height:auto;min-height:100vh;min-height:100dvh;overflow:visible}
+  #main{flex:1 0 auto;overflow:visible;display:flex;flex-direction:column}
+  .view.shown{position:relative;inset:auto;flex:1 0 auto}
+  #main>.view:not(.shown){display:none}
+  #v1{overflow:visible}
+  #v2 .dl{overflow:visible;height:auto;grid-template-rows:auto auto}
+  #v2 .pp{height:60vh;height:60dvh;min-height:0}
+  #v2 .dsb{max-height:none;overflow:visible}
+  #v2 .sbt{position:static}
+  .fl,.ftv{overscroll-behavior:contain}
 }
 
 @media (max-width: 560px){
-  #app{height:100dvh}
   .hdr-in{padding:6px var(--gutter)}
   .edu-logo{width:48px;height:48px}
   .edu-wordmark{font-size:19px}
@@ -1365,9 +1379,14 @@ async function showFileFallback(r){
 }
 
 function showDash(){sv('v2','v1');document.getElementById('pif').src='about:blank';}
+let dashScrollY=0;
 function sv(h,s){
+  // On mobile the page itself scrolls, so remember the list position when
+  // opening a repo and restore it on the way back.
+  if(h==='v1') dashScrollY=window.scrollY;
   document.getElementById(h).classList.remove('shown');
   document.getElementById(s).classList.add('shown');
+  window.scrollTo(0, s==='v1' ? dashScrollY : 0);
 }
 function setVp(m){ document.getElementById('pfw').className='pfw vp-'+m; document.querySelectorAll('.vpb').forEach(b=>b.classList.toggle('act',b.dataset.vp===m)); }
 function reloadPv(){if(activeRepo&&hasPreview(activeRepo))document.getElementById('pif').src=bust(activeRepo.preview_url);}
